@@ -33,7 +33,8 @@ export default defineConfig({
             },
             {
               urlPattern: ({ url, request }) =>
-                url.origin === self.location.origin && ["style", "script", "image", "font"].includes(request.destination),
+                url.origin === self.location.origin &&
+                ["style", "script", "image", "font"].includes(request.destination),
               handler: "CacheFirst",
               options: {
                 cacheName: "static-assets",

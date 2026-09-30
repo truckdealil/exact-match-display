@@ -80,7 +80,11 @@ export function InstallPrompt() {
                 </button>
               ) : null}
             </div>
-            <button onClick={dismiss} aria-label="סגור" className="text-muted-foreground hover:text-foreground">
+            <button
+              onClick={dismiss}
+              aria-label="סגור"
+              className="text-muted-foreground hover:text-foreground"
+            >
               <X className="size-4" />
             </button>
           </div>

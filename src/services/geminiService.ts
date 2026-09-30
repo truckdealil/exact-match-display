@@ -4,7 +4,7 @@
  * responds with a clearly-labelled local demo reply.
  */
 
-const API_KEY = import.meta.env['VITE_GEMINI_API_KEY'] as string | undefined;
+const API_KEY = import.meta.env["VITE_GEMINI_API_KEY"] as string | undefined;
 const MODEL = "gemini-2.5-flash";
 
 export const isGeminiConfigured = () => Boolean(API_KEY);

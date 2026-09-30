@@ -1,7 +1,12 @@
 import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Send, Sparkles, X } from "lucide-react";
-import { QUICK_PROMPTS, isGeminiConfigured, streamReply, type ChatTurn } from "@/services/geminiService";
+import {
+  QUICK_PROMPTS,
+  isGeminiConfigured,
+  streamReply,
+  type ChatTurn,
+} from "@/services/geminiService";
 import { cn } from "@/lib/utils";
 
 export function GeminiAssistant() {
@@ -24,13 +29,17 @@ export function GeminiAssistant() {
         setTurns((prev) => {
           const next = [...prev];
           const last = next[next.length - 1];
-          if (last && last.role === "model") next[next.length - 1] = { role: "model", text: last.text + chunk };
+          if (last && last.role === "model")
+            next[next.length - 1] = { role: "model", text: last.text + chunk };
           return next;
         });
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
       }
     } catch {
-      setTurns((prev) => [...prev.slice(0, -1), { role: "model", text: "אירעה שגיאה בחיבור למנוע ה-AI." }]);
+      setTurns((prev) => [
+        ...prev.slice(0, -1),
+        { role: "model", text: "אירעה שגיאה בחיבור למנוע ה-AI." },
+      ]);
     } finally {
       setThinking(false);
     }
@@ -72,7 +81,9 @@ export function GeminiAssistant() {
                   <div>
                     <p className="font-semibold">עוזר Gemini</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {isGeminiConfigured() ? "מחובר ל-Google AI Studio" : "מצב הדגמה — ממתין למפתח API"}
+                      {isGeminiConfigured()
+                        ? "מחובר ל-Google AI Studio"
+                        : "מצב הדגמה — ממתין למפתח API"}
                     </p>
                   </div>
                 </div>

@@ -77,8 +77,8 @@ export function NotificationPermissionModal({
             </div>
             <h3 className="mt-4 text-lg font-semibold">הפעלת התראות בזמן אמת</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-              קבל עדכוני סטטוס מיידיים עם צליל פעמון יוקרתי, גם כשהאפליקציה סגורה.
-              מצב ההרשאה הנוכחי: <span className="text-foreground">{currentPermission()}</span>
+              קבל עדכוני סטטוס מיידיים עם צליל פעמון יוקרתי, גם כשהאפליקציה סגורה. מצב ההרשאה
+              הנוכחי: <span className="text-foreground">{currentPermission()}</span>
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <button

@@ -6,7 +6,7 @@
 
 import { newId, put, readAll, enqueue, type SyncRecord } from "@/lib/storage";
 
-const ENDPOINT = import.meta.env['VITE_GOOGLE_APPS_SCRIPT_URL'] as string | undefined;
+const ENDPOINT = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
 
 export const isSheetsConfigured = () => Boolean(ENDPOINT);
 
@@ -91,7 +91,10 @@ export async function createRecord(
   return record;
 }
 
-export async function updateRecord(id: string, data: Partial<SyncRecord>): Promise<SyncRecord | null> {
+export async function updateRecord(
+  id: string,
+  data: Partial<SyncRecord>,
+): Promise<SyncRecord | null> {
   const rows = await readAll<SyncRecord>("records");
   const existing = rows.find((row) => row.id === id);
   if (!existing) return null;
@@ -101,7 +104,11 @@ export async function updateRecord(id: string, data: Partial<SyncRecord>): Promi
   return next;
 }
 
-async function pushOrQueue(type: "create" | "update", recordId: string, data: Record<string, unknown>) {
+async function pushOrQueue(
+  type: "create" | "update",
+  recordId: string,
+  data: Record<string, unknown>,
+) {
   const online = typeof navigator === "undefined" ? false : navigator.onLine;
   if (!ENDPOINT || !online) {
     await enqueue({ type, recordId, data });

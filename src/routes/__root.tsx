@@ -47,7 +47,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="glass-strong max-w-md rounded-3xl p-8 text-center">
         <h1 className="text-xl font-semibold tracking-tight">הדף לא נטען</h1>
-        <p className="mt-2 text-sm text-muted-foreground">אירעה תקלה. נסה לרענן או לחזור לדף הבית.</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          אירעה תקלה. נסה לרענן או לחזור לדף הבית.
+        </p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {

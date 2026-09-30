@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { audioService } from "@/services/audioService";
 
 type Theme = "dark" | "light";
@@ -65,7 +73,10 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }, [soundEnabled, volume]);
 
   const setTheme = useCallback((next: Theme) => setThemeState(next), []);
-  const toggleTheme = useCallback(() => setThemeState((t) => (t === "dark" ? "light" : "dark")), []);
+  const toggleTheme = useCallback(
+    () => setThemeState((t) => (t === "dark" ? "light" : "dark")),
+    [],
+  );
 
   const value = useMemo<SettingsValue>(
     () => ({

@@ -14,9 +14,15 @@ export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "הגדרות והתראות | מרכז שליטה" },
-      { name: "description", content: "ניהול התראות דחיפה, עוצמת צליל הפעמון וערכת הנושא של המערכת." },
+      {
+        name: "description",
+        content: "ניהול התראות דחיפה, עוצמת צליל הפעמון וערכת הנושא של המערכת.",
+      },
       { property: "og:title", content: "הגדרות והתראות | מרכז שליטה" },
-      { property: "og:description", content: "ניהול התראות דחיפה, עוצמת צליל הפעמון וערכת הנושא של המערכת." },
+      {
+        property: "og:description",
+        content: "ניהול התראות דחיפה, עוצמת צליל הפעמון וערכת הנושא של המערכת.",
+      },
     ],
   }),
   component: SettingsPage,
@@ -61,7 +67,9 @@ function SettingsPage() {
           <div className="mt-4">
             <div className="mb-2 flex items-center justify-between text-sm">
               <span>עוצמת שמע</span>
-              <span className="tabular-nums text-muted-foreground">{Math.round(volume * 100)}%</span>
+              <span className="tabular-nums text-muted-foreground">
+                {Math.round(volume * 100)}%
+              </span>
             </div>
             <input
               type="range"
@@ -92,7 +100,9 @@ function SettingsPage() {
             <button
               onClick={() => setTheme("dark")}
               className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm transition-transform active:scale-95 ${
-                theme === "dark" ? "border-primary/50 bg-primary/15 text-foreground" : "border-glass-border bg-glass"
+                theme === "dark"
+                  ? "border-primary/50 bg-primary/15 text-foreground"
+                  : "border-glass-border bg-glass"
               }`}
             >
               <Moon className="size-4" /> כהה
@@ -100,7 +110,9 @@ function SettingsPage() {
             <button
               onClick={() => setTheme("light")}
               className={`flex items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm transition-transform active:scale-95 ${
-                theme === "light" ? "border-primary/50 bg-primary/15 text-foreground" : "border-glass-border bg-glass"
+                theme === "light"
+                  ? "border-primary/50 bg-primary/15 text-foreground"
+                  : "border-glass-border bg-glass"
               }`}
             >
               <Sun className="size-4" /> טיטניום
@@ -111,9 +123,24 @@ function SettingsPage() {
         <GlassCard delay={0.15}>
           <SectionTitle title="חיבורים" subtitle="מפתחות סביבה נדרשים" />
           <div className="space-y-2 text-sm">
-            <ConnectionRow icon={Bell} label="OneSignal" env="VITE_ONESIGNAL_APP_ID" ok={isOneSignalConfigured()} />
-            <ConnectionRow icon={Table} label="Google Sheets" env="VITE_GOOGLE_APPS_SCRIPT_URL" ok={isSheetsConfigured()} />
-            <ConnectionRow icon={Sparkles} label="Gemini AI" env="VITE_GEMINI_API_KEY" ok={isGeminiConfigured()} />
+            <ConnectionRow
+              icon={Bell}
+              label="OneSignal"
+              env="VITE_ONESIGNAL_APP_ID"
+              ok={isOneSignalConfigured()}
+            />
+            <ConnectionRow
+              icon={Table}
+              label="Google Sheets"
+              env="VITE_GOOGLE_APPS_SCRIPT_URL"
+              ok={isSheetsConfigured()}
+            />
+            <ConnectionRow
+              icon={Sparkles}
+              label="Gemini AI"
+              env="VITE_GEMINI_API_KEY"
+              ok={isGeminiConfigured()}
+            />
           </div>
         </GlassCard>
       </div>
@@ -141,7 +168,9 @@ function ConnectionRow({
         <p className="font-medium">{label}</p>
         <p className="truncate text-[11px] text-muted-foreground">{env}</p>
       </div>
-      <span className={`text-xs ${ok ? "text-success" : "text-warning"}`}>{ok ? "מחובר" : "לא מוגדר"}</span>
+      <span className={`text-xs ${ok ? "text-success" : "text-warning"}`}>
+        {ok ? "מחובר" : "לא מוגדר"}
+      </span>
     </div>
   );
 }

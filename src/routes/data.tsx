@@ -13,9 +13,15 @@ export const Route = createFileRoute("/data")({
   head: () => ({
     meta: [
       { title: "מאגר נתונים וגיליון | מרכז שליטה" },
-      { name: "description", content: "טבלה אינטראקטיבית של נתוני Google Sheets עם חיפוש, מיון וייצוא." },
+      {
+        name: "description",
+        content: "טבלה אינטראקטיבית של נתוני Google Sheets עם חיפוש, מיון וייצוא.",
+      },
       { property: "og:title", content: "מאגר נתונים וגיליון | מרכז שליטה" },
-      { property: "og:description", content: "טבלה אינטראקטיבית של נתוני Google Sheets עם חיפוש, מיון וייצוא." },
+      {
+        property: "og:description",
+        content: "טבלה אינטראקטיבית של נתוני Google Sheets עם חיפוש, מיון וייצוא.",
+      },
     ],
   }),
   component: DataPage,
@@ -80,7 +86,15 @@ function DataPage() {
     const header = "id,timestamp,interfaceName,driveFolderReference,sheetRowId,status,title";
     const body = rows
       .map((row) =>
-        [row.id, row.timestamp, row.interfaceName, row.driveFolderReference, row.sheetRowId ?? "", row.status, row.title]
+        [
+          row.id,
+          row.timestamp,
+          row.interfaceName,
+          row.driveFolderReference,
+          row.sheetRowId ?? "",
+          row.status,
+          row.title,
+        ]
           .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
           .join(","),
       )
@@ -182,7 +196,9 @@ function DataPage() {
             </tbody>
           </table>
           {rows.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">לא נמצאו רשומות תואמות.</p>
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              לא נמצאו רשומות תואמות.
+            </p>
           ) : null}
         </div>
       </GlassCard>

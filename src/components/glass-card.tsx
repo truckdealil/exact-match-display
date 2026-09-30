@@ -6,7 +6,13 @@ interface GlassCardProps extends HTMLMotionProps<"div"> {
   glow?: boolean;
 }
 
-export function GlassCard({ className, delay = 0, glow = false, children, ...props }: GlassCardProps) {
+export function GlassCard({
+  className,
+  delay = 0,
+  glow = false,
+  children,
+  ...props
+}: GlassCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 18, scale: 0.985 }}

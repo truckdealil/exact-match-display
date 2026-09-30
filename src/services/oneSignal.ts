@@ -3,7 +3,7 @@
  * Loading is lazy and browser-only so SSR is untouched.
  */
 
-const APP_ID = import.meta.env['VITE_ONESIGNAL_APP_ID'] as string | undefined;
+const APP_ID = import.meta.env["VITE_ONESIGNAL_APP_ID"] as string | undefined;
 
 type OneSignalDeferred = Array<(os: unknown) => void | Promise<void>>;
 

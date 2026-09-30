@@ -4,16 +4,28 @@ import { Folder, FolderOpen, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { GlassCard, SectionTitle } from "@/components/glass-card";
 import { fetchRecords } from "@/services/sheetsService";
-import { drainQueue, readAll, type AuditLog, type InterfaceName, type PendingAction } from "@/lib/storage";
+import {
+  drainQueue,
+  readAll,
+  type AuditLog,
+  type InterfaceName,
+  type PendingAction,
+} from "@/lib/storage";
 import { useQueryClient } from "@tanstack/react-query";
 
 export const Route = createFileRoute("/storage")({
   head: () => ({
     meta: [
       { title: "מאגר היסטורי ודרייב | מרכז שליטה" },
-      { name: "description", content: "תצוגת תיקיות Drive לכל ממשק, קבצים בארכיון ותור פעולות מקומי." },
+      {
+        name: "description",
+        content: "תצוגת תיקיות Drive לכל ממשק, קבצים בארכיון ותור פעולות מקומי.",
+      },
       { property: "og:title", content: "מאגר היסטורי ודרייב | מרכז שליטה" },
-      { property: "og:description", content: "תצוגת תיקיות Drive לכל ממשק, קבצים בארכיון ותור פעולות מקומי." },
+      {
+        property: "og:description",
+        content: "תצוגת תיקיות Drive לכל ממשק, קבצים בארכיון ותור פעולות מקומי.",
+      },
     ],
   }),
   component: StoragePage,
@@ -77,8 +89,13 @@ function StoragePage() {
           </div>
           <div className="space-y-2">
             {(queue.data ?? []).map((action) => (
-              <div key={action.id} className="rounded-2xl border border-glass-border bg-glass px-4 py-3 text-sm">
-                <p className="font-medium">{action.type === "create" ? "יצירה" : "עדכון"} · {action.recordId}</p>
+              <div
+                key={action.id}
+                className="rounded-2xl border border-glass-border bg-glass px-4 py-3 text-sm"
+              >
+                <p className="font-medium">
+                  {action.type === "create" ? "יצירה" : "עדכון"} · {action.recordId}
+                </p>
                 <p className="text-[11px] text-muted-foreground">
                   {new Date(action.createdAt).toLocaleString("he-IL")}
                 </p>
@@ -91,7 +108,10 @@ function StoragePage() {
         </GlassCard>
 
         <GlassCard delay={0.25}>
-          <SectionTitle title="קבצים אחרונים בארכיון" subtitle="מיפוי רשומה ↔ תיקיית Drive ↔ שורת גיליון" />
+          <SectionTitle
+            title="קבצים אחרונים בארכיון"
+            subtitle="מיפוי רשומה ↔ תיקיית Drive ↔ שורת גיליון"
+          />
           <div className="space-y-2">
             {rows.slice(0, 7).map((row) => (
               <div
@@ -109,7 +129,9 @@ function StoragePage() {
             ))}
           </div>
           {(logs.data ?? []).length > 0 ? (
-            <p className="mt-4 text-xs text-muted-foreground">{logs.data?.length} רשומות יומן מקומיות.</p>
+            <p className="mt-4 text-xs text-muted-foreground">
+              {logs.data?.length} רשומות יומן מקומיות.
+            </p>
           ) : null}
         </GlassCard>
       </div>

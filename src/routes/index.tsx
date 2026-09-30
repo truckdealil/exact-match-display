@@ -61,9 +61,21 @@ function Dashboard() {
       </motion.div>
 
       <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-        <StatCard icon={CheckCircle2} label="מסונכרן" value={synced} tone="text-success" delay={0} />
+        <StatCard
+          icon={CheckCircle2}
+          label="מסונכרן"
+          value={synced}
+          tone="text-success"
+          delay={0}
+        />
         <StatCard icon={Clock} label="ממתין" value={pending} tone="text-warning" delay={0.05} />
-        <StatCard icon={TriangleAlert} label="כשלים" value={failed} tone="text-destructive" delay={0.1} />
+        <StatCard
+          icon={TriangleAlert}
+          label="כשלים"
+          value={failed}
+          tone="text-destructive"
+          delay={0.1}
+        />
         <StatCard
           icon={FolderSync}
           label="בתור מקומי"
@@ -137,7 +149,9 @@ function Dashboard() {
             </button>
           </div>
           <p className="mt-4 text-xs text-muted-foreground">
-            {online ? "החיבור פעיל — סנכרון מיידי." : "אין חיבור — הפעולות יישמרו מקומית ויסונכרנו אוטומטית."}
+            {online
+              ? "החיבור פעיל — סנכרון מיידי."
+              : "אין חיבור — הפעולות יישמרו מקומית ויסונכרנו אוטומטית."}
           </p>
         </GlassCard>
       </div>
