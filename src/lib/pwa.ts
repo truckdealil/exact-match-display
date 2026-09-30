@@ -1,6 +1,6 @@
 /**
  * Single guarded service-worker registrar. Never registers in dev, in an
- * iframe, or inside any Lovable preview host, and supports ?sw=off cleanup.
+ * iframe, or inside any preview host, and supports ?sw=off cleanup.
  */
 
 const SW_URL = "/sw.js";
@@ -9,12 +9,7 @@ function isPreviewHost(hostname: string) {
   return (
     hostname.startsWith("id-preview--") ||
     hostname.startsWith("preview--") ||
-    hostname === "lovableproject.com" ||
-    hostname.endsWith(".lovableproject.com") ||
-    hostname === "lovableproject-dev.com" ||
-    hostname.endsWith(".lovableproject-dev.com") ||
-    hostname === "beta.lovable.dev" ||
-    hostname.endsWith(".beta.lovable.dev")
+    (hostname.includes("vercel.app") && hostname.includes("-git-"))
   );
 }
 

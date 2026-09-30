@@ -1,6 +1,7 @@
 /**
- * Gemini service — connects to the server-side API proxy.
- * Calls Google AI Studio via server-side @google/genai with model gemini-3.8-flash.
+ * Direct client-side Google AI Studio integration for Vercel deployment.
+ * Connects directly to https://generativelanguage.googleapis.com
+ * using import.meta.env.VITE_GEMINI_API_KEY.
  */
 
 export interface ChatTurn {
@@ -8,79 +9,86 @@ export interface ChatTurn {
   text: string;
 }
 
-let configuredCache: boolean | null = null;
+const MODEL = "gemini-2.5-flash";
 
-export async function checkGeminiConfigured(): Promise<boolean> {
-  if (configuredCache !== null) return configuredCache;
-  try {
-    const res = await fetch("/api/gemini/status");
-    if (res.ok) {
-      const data = (await res.json()) as { configured?: boolean };
-      configuredCache = Boolean(data.configured);
-      return configuredCache;
-    }
-  } catch {
-    /* ignore network errors */
-  }
-  return true;
+export const VERCEL_MISSING_KEY_MESSAGE =
+  "מפתח ה-API אינו מוגדר. יש להגדיר את משתנה הסביבה VITE_GEMINI_API_KEY ב-Environment Variables בלוח הבקרה של Vercel (Project Settings > Environment Variables) כדי להפעיל את העוזר.";
+
+export function isGeminiConfigured(): boolean {
+  const key = import.meta.env["VITE_GEMINI_API_KEY"] as string | undefined;
+  return Boolean(key && key.trim().length > 0);
 }
 
-export const isGeminiConfigured = () => {
-  if (configuredCache !== null) return configuredCache;
-  return true;
-};
-
 export async function* streamReply(history: ChatTurn[]): AsyncGenerator<string> {
-  const response = await fetch("/api/gemini/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ history }),
-  });
+  const apiKey = (import.meta.env["VITE_GEMINI_API_KEY"] as string | undefined)?.trim();
+
+  // If VITE_GEMINI_API_KEY is not defined or empty, display clear Hebrew message explaining to set in Vercel
+  if (!apiKey) {
+    for (const word of VERCEL_MISSING_KEY_MESSAGE.split(" ")) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      yield `${word} `;
+    }
+    return;
+  }
+
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${apiKey}`;
+
+  let response: Response;
+  try {
+    response = await fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        contents: history.map((turn) => ({
+          role: turn.role,
+          parts: [{ text: turn.text }],
+        })),
+      }),
+    });
+  } catch {
+    throw new Error("שגיאת רשת בעת הפנייה ל-Google AI Studio. בדוק את החיבור לרשת.");
+  }
 
   if (!response.ok) {
-    let errorMsg = `שגיאה בחיבור ל-Gemini (${response.status})`;
+    let errorMessage = `שגיאה (${response.status}) בפנייה ל-Google AI Studio.`;
     try {
-      const errData = (await response.json()) as { error?: string };
-      if (errData.error) errorMsg = errData.error;
-    } catch {
-      /* ignore non-json errors */
-    }
-    throw new Error(errorMsg);
-  }
-
-  if (!response.body) {
-    throw new Error("לא התקבל זרם נתונים מהשרת");
-  }
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data:")) continue;
-      const payload = line.slice(5).trim();
-      if (!payload || payload === "[DONE]") continue;
-      try {
-        const json = JSON.parse(payload) as { text?: string; error?: string };
-        if (json.error) {
-          throw new Error(json.error);
+      const errorJson = (await response.json()) as {
+        error?: { message?: string; status?: string };
+      };
+      if (errorJson.error?.message) {
+        if (response.status === 400 && errorJson.error.message.includes("API_KEY_INVALID")) {
+          errorMessage =
+            "מפתח ה-API שהוגדר ב-Vercel אינו תקין. אנא ודא את מפתח ה-API של Google AI Studio.";
+        } else {
+          errorMessage = `שגיאה מ-Google AI Studio: ${errorJson.error.message}`;
         }
-        if (json.text) {
-          yield json.text;
-        }
-      } catch (e) {
-        if (e instanceof Error && e.message && !e.message.includes("JSON")) {
-          throw e;
-        }
-        /* ignore partial frames */
       }
+    } catch {
+      /* ignore parsing error */
     }
+    throw new Error(errorMessage);
+  }
+
+  const data = (await response.json()) as {
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{ text?: string }>;
+      };
+    }>;
+  };
+
+  const text =
+    data.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ??
+    "לא התקבלה תשובה מ-Google AI Studio.";
+
+  // Stream words smoothly for the chat UI
+  const words = text.split(" ");
+  for (let i = 0; i < words.length; i++) {
+    const word = words[i];
+    yield i === words.length - 1 ? word : `${word} `;
+    await new Promise((resolve) => setTimeout(resolve, 20));
   }
 }
 

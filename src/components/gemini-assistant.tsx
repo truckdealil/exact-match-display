@@ -1,9 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { Send, Sparkles, X } from "lucide-react";
+import { Info, Send, Sparkles, X } from "lucide-react";
 import {
   QUICK_PROMPTS,
-  checkGeminiConfigured,
   isGeminiConfigured,
   streamReply,
   type ChatTurn,
@@ -15,12 +14,8 @@ export function GeminiAssistant() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
-  const [configured, setConfigured] = useState(isGeminiConfigured());
+  const configured = isGeminiConfigured();
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    void checkGeminiConfigured().then(setConfigured);
-  }, []);
 
   const send = async (text: string) => {
     const prompt = text.trim();
@@ -86,7 +81,9 @@ export function GeminiAssistant() {
                   <div>
                     <p className="font-semibold">עוזר Gemini</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {configured ? "מחובר ל-Google AI Studio" : "מצב הדגמה — ממתין למפתח API"}
+                      {configured
+                        ? "מחובר ישירות ל-Google AI Studio"
+                        : "יש להגדיר VITE_GEMINI_API_KEY ב-Vercel"}
                     </p>
                   </div>
                 </div>
@@ -94,6 +91,17 @@ export function GeminiAssistant() {
                   <X className="size-4 text-muted-foreground" />
                 </button>
               </div>
+
+              {!configured ? (
+                <div className="mt-3 flex items-start gap-2.5 rounded-2xl border border-warning/30 bg-warning/10 p-3 text-xs text-warning">
+                  <Info className="mt-0.5 size-4 shrink-0" />
+                  <p>
+                    מפתח ה-API אינו מוגדר. להפעלת העוזר, הוסף את המשתנה{" "}
+                    <code className="rounded bg-black/20 px-1 py-0.5">VITE_GEMINI_API_KEY</code>{" "}
+                    בהגדרות הסביבה של הפרויקט ב-Vercel.
+                  </p>
+                </div>
+              ) : null}
 
               <div ref={scrollRef} className="mt-5 flex-1 space-y-3 overflow-y-auto pl-1">
                 {turns.length === 0 ? (
