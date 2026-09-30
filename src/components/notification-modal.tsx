@@ -24,14 +24,16 @@ export function NotificationPermissionModal({
     setBusy(true);
     try {
       await audioService.unlock();
+      if (currentPermission() === "unsupported") {
+        toast.error("הדפדפן אינו תומך בהתראות");
+        return;
+      }
       const permission = await requestPushPermission();
       if (permission === "granted") {
         if (isOneSignalConfigured()) await initOneSignal().catch(() => undefined);
         void audioService.play("success");
         toast.success("ההתראות הופעלו בהצלחה");
         onOpenChange(false);
-      } else if (permission === "unsupported") {
-        toast.error("הדפדפן אינו תומך בהתראות");
       } else {
         toast.error("ההרשאה נדחתה — ניתן לאשר מחדש בהגדרות הדפדפן");
       }
