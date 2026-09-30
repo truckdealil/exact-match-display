@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Bell, BellRing, Volume2, X } from "lucide-react";
 import { toast } from "sonner";
@@ -19,6 +19,15 @@ export function NotificationPermissionModal({
   onOpenChange: (open: boolean) => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
+    "unsupported",
+  );
+
+  useEffect(() => {
+    if (open) {
+      setPermission(currentPermission());
+    }
+  }, [open]);
 
   const enable = async () => {
     setBusy(true);
@@ -28,8 +37,9 @@ export function NotificationPermissionModal({
         toast.error("הדפדפן אינו תומך בהתראות");
         return;
       }
-      const permission = await requestPushPermission();
-      if (permission === "granted") {
+      const nextPermission = await requestPushPermission();
+      setPermission(nextPermission);
+      if (nextPermission === "granted") {
         if (isOneSignalConfigured()) await initOneSignal().catch(() => undefined);
         void audioService.play("success");
         toast.success("ההתראות הופעלו בהצלחה");
@@ -78,7 +88,7 @@ export function NotificationPermissionModal({
             <h3 className="mt-4 text-lg font-semibold">הפעלת התראות בזמן אמת</h3>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               קבל עדכוני סטטוס מיידיים עם צליל פעמון יוקרתי, גם כשהאפליקציה סגורה. מצב ההרשאה
-              הנוכחי: <span className="text-foreground">{currentPermission()}</span>
+              הנוכחי: <span className="text-foreground">{permission}</span>
             </p>
             <div className="mt-6 flex flex-wrap gap-2">
               <button

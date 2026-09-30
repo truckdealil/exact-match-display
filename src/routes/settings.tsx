@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Bell, Moon, Sparkles, Sun, Table, Volume2 } from "lucide-react";
 import { toast } from "sonner";
@@ -31,6 +31,13 @@ export const Route = createFileRoute("/settings")({
 function SettingsPage() {
   const { theme, setTheme, soundEnabled, setSoundEnabled, volume, setVolume } = useSettings();
   const [notifyOpen, setNotifyOpen] = useState(false);
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
+    "unsupported",
+  );
+
+  useEffect(() => {
+    setPermission(currentPermission());
+  }, [notifyOpen]);
 
   return (
     <div>
@@ -42,7 +49,7 @@ function SettingsPage() {
         <GlassCard>
           <SectionTitle title="התראות דחיפה" subtitle="OneSignal Web Push" />
           <p className="text-sm text-muted-foreground">
-            מצב הרשאה נוכחי: <span className="text-foreground">{currentPermission()}</span>
+            מצב הרשאה נוכחי: <span className="text-foreground">{permission}</span>
           </p>
           <button
             onClick={() => setNotifyOpen(true)}
