@@ -2,5 +2,6 @@
   "name": "Exact Match Display",
   "description": "מערכת ניהול תפעולית מתקדמת עם סנכרון Google Sheets, מיקום חי, התראות ועוזר AI.",
   "permissions": [],
-  "capabilities": []
+  "capabilities": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

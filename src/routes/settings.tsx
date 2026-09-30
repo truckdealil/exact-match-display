@@ -8,7 +8,7 @@ import { audioService } from "@/services/audioService";
 import { NotificationPermissionModal } from "@/components/notification-modal";
 import { currentPermission, isOneSignalConfigured } from "@/services/oneSignal";
 import { isSheetsConfigured } from "@/services/sheetsService";
-import { isGeminiConfigured } from "@/services/geminiService";
+import { checkGeminiConfigured, isGeminiConfigured } from "@/services/geminiService";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -34,10 +34,15 @@ function SettingsPage() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported",
   );
+  const [geminiOk, setGeminiOk] = useState(isGeminiConfigured());
 
   useEffect(() => {
     setPermission(currentPermission());
   }, [notifyOpen]);
+
+  useEffect(() => {
+    void checkGeminiConfigured().then(setGeminiOk);
+  }, []);
 
   return (
     <div>
@@ -142,12 +147,7 @@ function SettingsPage() {
               env="VITE_GOOGLE_APPS_SCRIPT_URL"
               ok={isSheetsConfigured()}
             />
-            <ConnectionRow
-              icon={Sparkles}
-              label="Gemini AI"
-              env="VITE_GEMINI_API_KEY"
-              ok={isGeminiConfigured()}
-            />
+            <ConnectionRow icon={Sparkles} label="Gemini AI" env="GEMINI_API_KEY" ok={geminiOk} />
           </div>
         </GlassCard>
       </div>

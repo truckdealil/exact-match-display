@@ -1,8 +1,9 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Send, Sparkles, X } from "lucide-react";
 import {
   QUICK_PROMPTS,
+  checkGeminiConfigured,
   isGeminiConfigured,
   streamReply,
   type ChatTurn,
@@ -14,7 +15,12 @@ export function GeminiAssistant() {
   const [turns, setTurns] = useState<ChatTurn[]>([]);
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
+  const [configured, setConfigured] = useState(isGeminiConfigured());
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    void checkGeminiConfigured().then(setConfigured);
+  }, []);
 
   const send = async (text: string) => {
     const prompt = text.trim();
@@ -35,11 +41,10 @@ export function GeminiAssistant() {
         });
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
       }
-    } catch {
-      setTurns((prev) => [
-        ...prev.slice(0, -1),
-        { role: "model", text: "אירעה שגיאה בחיבור למנוע ה-AI." },
-      ]);
+    } catch (err: unknown) {
+      const errorMsg =
+        err instanceof Error && err.message ? err.message : "אירעה שגיאה בחיבור למנוע ה-AI.";
+      setTurns((prev) => [...prev.slice(0, -1), { role: "model", text: errorMsg }]);
     } finally {
       setThinking(false);
     }
@@ -81,9 +86,7 @@ export function GeminiAssistant() {
                   <div>
                     <p className="font-semibold">עוזר Gemini</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {isGeminiConfigured()
-                        ? "מחובר ל-Google AI Studio"
-                        : "מצב הדגמה — ממתין למפתח API"}
+                      {configured ? "מחובר ל-Google AI Studio" : "מצב הדגמה — ממתין למפתח API"}
                     </p>
                   </div>
                 </div>

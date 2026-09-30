@@ -1,43 +1,56 @@
 /**
- * Gemini engine placeholder — wired for Google AI Studio.
- * Set VITE_GEMINI_API_KEY to enable live answers; otherwise the assistant
- * responds with a clearly-labelled local demo reply.
+ * Gemini service — connects to the server-side API proxy.
+ * Calls Google AI Studio via server-side @google/genai with model gemini-3.8-flash.
  */
-
-const API_KEY = import.meta.env["VITE_GEMINI_API_KEY"] as string | undefined;
-const MODEL = "gemini-2.5-flash";
-
-export const isGeminiConfigured = () => Boolean(API_KEY);
 
 export interface ChatTurn {
   role: "user" | "model";
   text: string;
 }
 
-export async function* streamReply(history: ChatTurn[]): AsyncGenerator<string> {
-  const prompt = history[history.length - 1]?.text ?? "";
+let configuredCache: boolean | null = null;
 
-  if (!API_KEY) {
-    const demo = `מצב הדגמה: מפתח Gemini עדיין לא הוגדר.\n\nשאלת: "${prompt}"\nברגע שיוגדר VITE_GEMINI_API_KEY, התשובות יגיעו ישירות מ-Google AI Studio בזרימה חיה.`;
-    for (const chunk of demo.split(" ")) {
-      await new Promise((r) => setTimeout(r, 35));
-      yield `${chunk} `;
+export async function checkGeminiConfigured(): Promise<boolean> {
+  if (configuredCache !== null) return configuredCache;
+  try {
+    const res = await fetch("/api/gemini/status");
+    if (res.ok) {
+      const data = (await res.json()) as { configured?: boolean };
+      configuredCache = Boolean(data.configured);
+      return configuredCache;
     }
-    return;
+  } catch {
+    /* ignore network errors */
+  }
+  return true;
+}
+
+export const isGeminiConfigured = () => {
+  if (configuredCache !== null) return configuredCache;
+  return true;
+};
+
+export async function* streamReply(history: ChatTurn[]): AsyncGenerator<string> {
+  const response = await fetch("/api/gemini/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ history }),
+  });
+
+  if (!response.ok) {
+    let errorMsg = `שגיאה בחיבור ל-Gemini (${response.status})`;
+    try {
+      const errData = (await response.json()) as { error?: string };
+      if (errData.error) errorMsg = errData.error;
+    } catch {
+      /* ignore non-json errors */
+    }
+    throw new Error(errorMsg);
   }
 
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:streamGenerateContent?alt=sse&key=${API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: history.map((turn) => ({ role: turn.role, parts: [{ text: turn.text }] })),
-      }),
-    },
-  );
-
-  if (!response.ok || !response.body) throw new Error(`Gemini error ${response.status}`);
+  if (!response.body) {
+    throw new Error("לא התקבל זרם נתונים מהשרת");
+  }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -54,12 +67,17 @@ export async function* streamReply(history: ChatTurn[]): AsyncGenerator<string> 
       const payload = line.slice(5).trim();
       if (!payload || payload === "[DONE]") continue;
       try {
-        const json = JSON.parse(payload) as {
-          candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-        };
-        const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("") ?? "";
-        if (text) yield text;
-      } catch {
+        const json = JSON.parse(payload) as { text?: string; error?: string };
+        if (json.error) {
+          throw new Error(json.error);
+        }
+        if (json.text) {
+          yield json.text;
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message && !e.message.includes("JSON")) {
+          throw e;
+        }
         /* ignore partial frames */
       }
     }
