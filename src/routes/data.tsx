@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { GlassCard, SectionTitle } from "@/components/glass-card";
 import { StatusBadge } from "@/routes/index";
 import {
+  clearAllRecords,
   createRecord,
   fetchRecords,
   isSheetsConfigured,
@@ -173,6 +174,17 @@ function DataPage() {
           >
             <Trash2 className="size-4" />
             נקה דמה
+          </button>
+          <button
+            onClick={async () => {
+              await clearAllRecords();
+              void queryClient.invalidateQueries({ queryKey: ["records"] });
+              toast.success("כל הרשומות המקומיות אופסו. מרענן נקי מהענן…");
+            }}
+            title="איפוס מלא של מאגר הנתונים המקומי וטעינה ישירה מהגיליון"
+            className="inline-flex h-11 items-center gap-1.5 rounded-2xl border border-glass-border bg-glass px-3 text-xs font-medium text-muted-foreground hover:text-foreground transition-all active:scale-95"
+          >
+            איפוס מלא
           </button>
           <button
             onClick={() => create.mutate()}

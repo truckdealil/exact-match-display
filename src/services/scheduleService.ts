@@ -115,15 +115,36 @@ export function purgeMockScheduleOrders(): void {
     if (!raw) return;
     const orders = JSON.parse(raw) as ScheduleOrder[];
     const mockIds = new Set(["6215710", "6215711", "6215712", "6215713", "6215504"]);
-    const hasMock = orders.some((o) => mockIds.has(o.order_id));
+    const hasMock = orders.some(
+      (o) =>
+        mockIds.has(o.order_id) ||
+        o.order_id.toLowerCase().includes("mock") ||
+        o.order_id.toLowerCase().includes("demo") ||
+        o.customer_name.includes("דמה"),
+    );
     if (hasMock) {
-      const cleaned = orders.filter((o) => !mockIds.has(o.order_id));
+      const cleaned = orders.filter(
+        (o) =>
+          !mockIds.has(o.order_id) &&
+          !o.order_id.toLowerCase().includes("mock") &&
+          !o.order_id.toLowerCase().includes("demo") &&
+          !o.customer_name.includes("דמה"),
+      );
       localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
       window.dispatchEvent(new CustomEvent("saban_schedule_updated", { detail: cleaned }));
     }
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * מחיקה מוחלטת של כל ההזמנות המקומיות לאיפוס וסנכרון מלא מול ענן Google Sheets
+ */
+export function clearAllLocalOrders(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEY);
+  window.dispatchEvent(new CustomEvent("saban_schedule_updated", { detail: [] }));
 }
 
 /**
@@ -225,50 +246,103 @@ export function notifyStatusChange(event: StatusNotificationEvent): void {
 }
 
 /**
- * נרמול שורת הזמנה מהגיליון (תמיכה בכותרות עברית ואנגלית)
+ * מיפוי שורת גיליון גולמית (Row Array) לפי סכמת האב המדויקת של ח. סבן
+ *
+ * עמודות טאב 'הזמנות' (מערכת מאוחדת - 1Ie7gKql_EDdrIN9HqunJc9Ey5k0WXXfPRxs0Vp1Bs2c):
+ * Col A (0): תאריך קליטה (timestamp)
+ * Col B (1): מספר הזמנה (order_id)
+ * Col C (2): מספר לקוח (customer_number, למשל 613304)
+ * Col D (3): שם לקוח (customer_name, למשל מאריו הנדסה אספקה חומרי בניין בע"מ)
+ * Col E (4): מחסן (warehouse)
+ * Col F (5): כתובת אספקה (address)
+ * Col G (6): פירוט מוצרים וכמויות (items)
+ * Col H (7): פקדון בלות (big_bag_deposit)
+ * Col I (8): פקדון משטחים (pallet_deposit)
+ * Col J (9): נהג משוייך (driver)
+ * Col K (10): תיק לקוח ב-Drive (drive_folder)
+ * Col L (11): קישור Waze (waze_url)
+ * Col M (12): שיתוף WhatsApp (whatsapp_url)
+ * Col N (13): קיימת תעודת משלוח? (status)
+ * Col P (15): טלפון נהג (driver_phone)
  */
-export function normalizeSheetOrder(raw: Record<string, unknown>): ScheduleOrder {
-  const round_time = String(raw["סבב ושעה"] || raw["round_time"] || raw["RoundTime"] || "סבב בוקר");
-  const order_id = String(
-    raw["מספר הזמנה"] || raw["order_id"] || raw["OrderId"] || raw["id"] || `ORD-${Date.now()}`,
-  );
-  const customer_id = String(raw["מספר לקוח"] || raw["customer_id"] || raw["CustId"] || "");
-  const customer_name = String(
-    raw["שם לקוח"] ||
-      raw["שם לקוח / אתר"] ||
-      raw["customer_name"] ||
-      raw["CustName"] ||
-      "לקוח כללי",
-  );
-  const warehouse = String(
-    raw["מחסן מקור"] || raw["warehouse"] || raw["Warehouse"] || "מחסן ראשי כפר ברא",
-  );
-  const address = String(
-    raw["כתובת יעד ועיר"] || raw["כתובת יעד"] || raw["address"] || raw["SiteAddress"] || "",
-  );
-  const driver = String(raw["נהג משובץ"] || raw["driver"] || raw["Driver"] || "לשיבוץ");
-  const items = String(
-    raw["פירוט מוצרים וכמויות"] ||
-      raw["פירוט פריטים וכמויות"] ||
-      raw["items"] ||
-      raw["ItemsSummary"] ||
-      "",
-  );
-  const deposits = String(
-    raw["פקדונות (בלות/משטחים)"] || raw["deposits"] || calculateDeposits(items),
-  );
-  const status = String(raw["סטטוס ביצוע"] || raw["status"] || raw["Status"] || "בסידור עבודה");
-  const rawWaze = String(raw["ניווט Waze"] || raw["waze_url"] || "");
-  const waze_url = rawWaze.startsWith("http") ? rawWaze : generateWazeUrl(address);
-  const whatsapp_action = String(
-    raw["שידור WhatsApp"] || raw["whatsapp_action"] || generateWhatsAppAction(driver),
-  );
+export function mapRawSheetRowToScheduleOrder(row: any[]): ScheduleOrder {
+  // Check if row is from master tab 'הזמנות' (Index 2 is numeric customer ID, length >= 10)
+  const isMasterOrdersTab =
+    row.length >= 10 &&
+    !isNaN(Number(row[2])) &&
+    String(row[2]).trim().length >= 4;
+
+  const orderId = String(row[1] || "").trim();
+
+  // In 'הזמנות': Customer Name is Column D (Index 3). In 'דוח_בוקר': Column C (Index 2).
+  const customerName = isMasterOrdersTab
+    ? String(row[3] || "לקוח ח. סבן").trim()
+    : String(row[2] || "לקוח ח. סבן").trim();
+
+  // Warehouse: Column E (Index 4) in 'הזמנות', Column D (Index 3) in 'דוח_בוקר'
+  const rawWarehouse = isMasterOrdersTab ? String(row[4] || "") : String(row[3] || "");
+  const warehouse =
+    rawWarehouse.includes("תלמיד") || rawWarehouse.includes("1")
+      ? "🏟️ 1️⃣(התלמיד)"
+      : "🏭 4️⃣(החרש)";
+
+  // Address: Column F (Index 5) in 'הזמנות', Column E (Index 4) in 'דוח_בוקר'
+  const address = isMasterOrdersTab ? String(row[5] || "") : String(row[4] || "");
+
+  // Driver: Column J (Index 9) in 'הזמנות', Column F (Index 5) in 'דוח_בוקר'
+  const rawDriver = isMasterOrdersTab ? String(row[9] || "") : String(row[5] || "");
+  let driver = "עלי (משאית איסוזו)";
+  if (rawDriver.includes("חכמת") || rawDriver.includes("מנוף")) {
+    driver = "חכמת (מרצדס מנוף)";
+  } else if (rawDriver.includes("רמסע") || rawDriver.includes("מכולה")) {
+    driver = "משאית רמסע מכולות";
+  }
+
+  // Items: Column G (Index 6)
+  const items = String(row[6] || "").trim();
+
+  // Deposits: In 'הזמנות', Col H is Big Bags and Col I is Pallets.
+  let deposits = "פטור";
+  if (isMasterOrdersTab) {
+    const rawBags = String(row[7] || "").trim();
+    const rawPallets = String(row[8] || "").trim();
+    const bagText =
+      rawBags && rawBags !== "0" && rawBags !== "פטור"
+        ? rawBags.includes("בלה")
+          ? rawBags
+          : `${rawBags} בלות (60002)`
+        : "";
+    const palletText =
+      rawPallets && rawPallets !== "0" && rawPallets !== "פטור"
+        ? rawPallets.includes("משטח")
+          ? rawPallets
+          : `${rawPallets} משטחי סבן (60060)`
+        : "";
+    deposits = [bagText, palletText].filter(Boolean).join(" | ") || "פטור מפקדונות";
+  } else {
+    deposits = String(row[7] || "פטור מפקדונות");
+  }
+
+  // Status: Column N (Index 13) in 'הזמנות', Column J (Index 9) in 'דוח_בוקר'
+  const rawStatus = isMasterOrdersTab ? String(row[13] || "") : String(row[9] || "");
+  let status = "בסידור עבודה";
+  if (rawStatus.includes("סופק") || rawStatus.includes("כן")) status = "סופק במלואו";
+  else if (rawStatus.includes("דרך") || rawStatus.includes("יצא")) status = "יצא לדרך";
+  else if (rawStatus.includes("העמסה") || rawStatus.includes("מוכן")) status = "מוכן להעמסה";
+
+  // Waze URL: Column L (Index 11) in 'הזמנות', Column I (Index 8) in 'דוח_בוקר'
+  const rawWaze = isMasterOrdersTab ? String(row[11] || "") : String(row[8] || "");
+  const waze_url = rawWaze.startsWith("http")
+    ? rawWaze
+    : `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
+
+  // Round / Time: Column A (Index 0)
+  const round_time = String(row[0] || "סבב בוקר");
 
   return {
-    round_time,
-    order_id,
-    customer_id,
-    customer_name,
+    order_id: orderId,
+    customer_id: isMasterOrdersTab ? String(row[2] || "").trim() : undefined,
+    customer_name: customerName,
     warehouse,
     address,
     driver,
@@ -276,6 +350,143 @@ export function normalizeSheetOrder(raw: Record<string, unknown>): ScheduleOrder
     deposits,
     waze_url,
     status,
+    round_time,
+    whatsapp_action: driver.includes("חכמת") ? "שדר לחכמת" : "שדר לעלי",
+    has_delivery_note: status.includes("סופק"),
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
+ * נרמול שורת הזמנה מהגיליון (תמיכה במערכים ובאובייקטים בכותרות עברית ואנגלית)
+ */
+export function normalizeSheetOrder(raw: any): ScheduleOrder {
+  if (Array.isArray(raw)) {
+    return mapRawSheetRowToScheduleOrder(raw);
+  }
+
+  const order_id = String(
+    raw["מספר הזמנה"] || raw.order_id || raw.OrderId || raw.id || `ORD-${Date.now()}`,
+  ).trim();
+
+  const customer_id = String(
+    raw["מספר לקוח"] || raw.customer_number || raw.customer_id || raw.CustId || "",
+  ).trim();
+
+  // Extract customer name - never fall back to "לקוח כללי", fallback to 'לקוח ח. סבן'
+  let customer_name = String(
+    raw["שם לקוח"] || raw["שם לקוח / אתר"] || raw.customer_name || raw.CustName || "",
+  ).trim();
+
+  // If customer_name was mistakenly set to a numeric customer ID, or is empty:
+  if (!customer_name || (!isNaN(Number(customer_name)) && customer_name.length <= 10)) {
+    customer_name = "לקוח ח. סבן";
+  }
+
+  // Warehouse: 'מחסן' in הזמנות, 'מחסן מקור' in דוח_בוקר
+  const rawWarehouse = String(
+    raw["מחסן"] || raw["מחסן מקור"] || raw.warehouse || raw.Warehouse || "",
+  ).trim();
+  let warehouse = rawWarehouse || "🏭 4️⃣(החרש)";
+  if (rawWarehouse.includes("תלמיד") || rawWarehouse.includes("1")) {
+    warehouse = "🏟️ 1️⃣(התלמיד)";
+  } else if (rawWarehouse.includes("כפר ברא") || rawWarehouse.includes("ראשי")) {
+    warehouse = "🏭 מחסן ראשי (כפר ברא)";
+  } else if (rawWarehouse.includes("חרש") || rawWarehouse.includes("4")) {
+    warehouse = "🏭 4️⃣(החרש)";
+  }
+
+  // Address: 'כתובת אספקה' in הזמנות, 'כתובת יעד ועיר' in דוח_בוקר
+  const address = String(
+    raw["כתובת אספקה"] ||
+      raw["כתובת יעד ועיר"] ||
+      raw["כתובת יעד"] ||
+      raw.address ||
+      raw.SiteAddress ||
+      "",
+  ).trim();
+
+  // Driver: 'נהג משוייך' in הזמנות, 'נהג משובץ' in דוח_בוקר
+  const rawDriver = String(
+    raw["נהג משוייך"] || raw["נהג משובץ"] || raw.driver || raw.Driver || "",
+  ).trim();
+  let driver = rawDriver || "עלי (משאית איסוזו)";
+  if (rawDriver.includes("חכמת") || rawDriver.includes("מנוף")) {
+    driver = rawDriver;
+  } else if (rawDriver.includes("רמסע") || rawDriver.includes("מכולה")) {
+    driver = rawDriver;
+  }
+
+  // Items: 'פירוט מוצרים וכמויות'
+  const items = String(
+    raw["פירוט מוצרים וכמויות"] ||
+      raw["פירוט פריטים וכמויות"] ||
+      raw.items ||
+      raw.ItemsSummary ||
+      "",
+  ).trim();
+
+  // Deposits: Col H ('פקדון בלות') and Col I ('פקדון משטחים') in הזמנות
+  const rawBags = String(raw["פקדון בלות"] || raw.big_bag_deposit || "").trim();
+  const rawPallets = String(raw["פקדון משטחים"] || raw.pallet_deposit || "").trim();
+  let deposits = "";
+  if (rawBags || rawPallets) {
+    const bagText =
+      rawBags && rawBags !== "0" && rawBags !== "פטור"
+        ? rawBags.includes("בלה")
+          ? rawBags
+          : `${rawBags} בלות (60002)`
+        : "";
+    const palletText =
+      rawPallets && rawPallets !== "0" && rawPallets !== "פטור"
+        ? rawPallets.includes("משטח")
+          ? rawPallets
+          : `${rawPallets} משטחי סבן (60060)`
+        : "";
+    deposits = [bagText, palletText].filter(Boolean).join(" | ");
+  }
+  if (!deposits) {
+    deposits = String(
+      raw["פקדונות (בלות/משטחים)"] ||
+        raw["פקדונות"] ||
+        raw.deposits ||
+        calculateDeposits(items) ||
+        "פטור מפקדונות",
+    );
+  }
+
+  // Status: 'קיימת תעודת משלוח?' in הזמנות, 'סטטוס ביצוע' in דוח_בוקר
+  const rawStatus = String(
+    raw["קיימת תעודת משלוח?"] || raw["סטטוס ביצוע"] || raw.status || raw.Status || "",
+  );
+  let status = "בסידור עבודה";
+  if (rawStatus.includes("סופק") || rawStatus.includes("כן")) status = "סופק במלואו";
+  else if (rawStatus.includes("דרך") || rawStatus.includes("יצא")) status = "יצא לדרך";
+  else if (rawStatus.includes("העמסה") || rawStatus.includes("מוכן")) status = "מוכן להעמסה";
+
+  // Waze URL: 'קישור Waze' in הזמנות, 'ניווט Waze' in דוח_בוקר
+  const rawWaze = String(raw["קישור Waze"] || raw["ניווט Waze"] || raw.waze_url || "").trim();
+  const waze_url = rawWaze.startsWith("http")
+    ? rawWaze
+    : `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
+
+  // Round / Time: 'תאריך קליטה' in הזמנות, 'סבב ושעה' in דוח_בוקר
+  const round_time = String(raw["סבב ושעה"] || raw["תאריך קליטה"] || raw.round_time || "סבב בוקר");
+
+  const whatsapp_action = driver.includes("חכמת") ? "שדר לחכמת" : "שדר לעלי";
+
+  return {
+    order_id,
+    customer_id: customer_id || undefined,
+    customer_name,
+    warehouse,
+    address,
+    driver,
+    items,
+    deposits: deposits || "פטור מפקדונות",
+    waze_url,
+    status,
+    round_time,
     whatsapp_action,
     has_delivery_note: status.includes("סופק"),
     timestamp: new Date().toISOString(),
@@ -454,9 +665,8 @@ export function append_order_to_sheet(orderData: {
   saveScheduleOrders(updated);
 
   // Send to Apps Script endpoint
-  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
-  const token =
-    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
+  const endpoint = getScheduleAppsScriptEndpoint();
+  const token = getScheduleAppsScriptToken();
   if (endpoint && typeof navigator !== "undefined" && navigator.onLine) {
     void fetch(endpoint, {
       method: "POST",

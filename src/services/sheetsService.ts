@@ -68,7 +68,7 @@ export async function checkSheetsCloudConnection(): Promise<{
       connected: data.success === true || data.status === "online",
       message:
         data.success || data.status === "online"
-          ? "מחובר לגיליון מערכת מאוחדת בענן (ח. סבן)"
+          ? `מחובר לגיליונות Google Sheets בענן (${data.business || "ח. סבן"})`
           : "התקבלה תשובה אך ללא אימות תקין",
       sheets: data.sheets,
       timestamp: data.timestamp,
@@ -91,9 +91,13 @@ export async function purgeMockRecords(): Promise<number> {
     for (const record of cached) {
       if (
         record.id.startsWith("rec-100") ||
+        record.id.startsWith("temp-") ||
         record.title.includes("משלוח צפון") ||
         record.title.includes("נהג 12") ||
-        record.title.includes("9931")
+        record.title.includes("9931") ||
+        record.title.includes("דמה") ||
+        record.title.toLowerCase().includes("demo") ||
+        record.title.toLowerCase().includes("mock")
       ) {
         await remove("records", record.id);
         count++;
@@ -103,6 +107,20 @@ export async function purgeMockRecords(): Promise<number> {
     /* ignore */
   }
   return count;
+}
+
+/**
+ * מחיקה מלאה של כל הרשומות המקומיות לסנכרון נקי מהענן
+ */
+export async function clearAllRecords(): Promise<void> {
+  try {
+    const cached = await readAll<SyncRecord>("records");
+    for (const record of cached) {
+      await remove("records", record.id);
+    }
+  } catch {
+    /* ignore */
+  }
 }
 
 /**

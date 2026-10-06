@@ -28,12 +28,14 @@ import { GlassCard, SectionTitle } from "@/components/glass-card";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import {
   checkSheetsCloudConnection,
+  clearAllRecords,
   fetchRecords,
   purgeMockRecords,
 } from "@/services/sheetsService";
 import { readAll, type PendingAction } from "@/lib/storage";
 import { useSettings } from "@/lib/settings";
 import {
+  clearAllLocalOrders,
   loadRecentStatusUpdates,
   loadScheduleOrders,
   purgeMockScheduleOrders,
@@ -178,11 +180,20 @@ function Dashboard() {
 
   const handlePurgeMockData = async () => {
     purgeMockScheduleOrders();
-    await purgeMockRecords();
+    const count = await purgeMockRecords();
     localStorage.removeItem("saban_unified_orders_v2");
     setScheduleOrders([]);
     void queryClient.invalidateQueries({ queryKey: ["records"] });
-    toast.success("כל נתוני הדמה נוקו בהצלחה! מתחבר לגיליונות בענן…");
+    toast.success(`כל נתוני הדמה נוקו בהצלחה (${count} רשומות)! מתחבר לגיליונות בענן…`);
+    await handleSyncFromSheets();
+  };
+
+  const handleHardReset = async () => {
+    clearAllLocalOrders();
+    await clearAllRecords();
+    setScheduleOrders([]);
+    void queryClient.invalidateQueries({ queryKey: ["records"] });
+    toast.success("איפוס זיכרון מלא בוצע! טוען כעת את ההזמנות החיות ישירות מ-Google Sheets…");
     await handleSyncFromSheets();
   };
 
@@ -295,6 +306,14 @@ function Dashboard() {
             >
               <Trash2 className="size-3.5" />
               <span>נקה דמה</span>
+            </button>
+
+            <button
+              onClick={handleHardReset}
+              title="איפוס מלא של הזיכרון המקומי וטעינה ישירה מ-Google Sheets"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-glass-border bg-glass px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground active:scale-95 transition-all"
+            >
+              <span>איפוס מלא</span>
             </button>
 
             <span className="rounded-xl border border-glass-border bg-glass px-2.5 py-1.5 text-muted-foreground">

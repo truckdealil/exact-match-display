@@ -2,10 +2,19 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "build": {
     "env": {
-      "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
+      "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1",
+      "VITE_GOOGLE_APPS_SCRIPT_URL": "https://script.google.com/macros/s/AKfycbwAkBK1Z051WmTvyDsRNrUf3xAS0MOCio9QRdoGyYxQdN66AekWhG_YFAgmKNEl7mR_/exec",
+      "VITE_APPS_SCRIPT_TOKEN": "saban_secret_token_2026",
+      "VITE_UNIFIED_SPREADSHEET_ID": "1Ie7gKql_EDdrIN9HqunJc9Ey5k0WXXfPRxs0Vp1Bs2c",
+      "VITE_NOA_AI_SPREADSHEET_ID": "1VA9J6n9IYcooO_s2xOpnkvyDQWWQD3pfhh0cnenCkoA"
     }
   },
   "env": {
-    "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1"
+    "DANGEROUSLY_DEPLOY_VULNERABLE_TANSTACK_START_XSS": "1",
+    "VITE_GOOGLE_APPS_SCRIPT_URL": "https://script.google.com/macros/s/AKfycbwAkBK1Z051WmTvyDsRNrUf3xAS0MOCio9QRdoGyYxQdN66AekWhG_YFAgmKNEl7mR_/exec",
+    "VITE_APPS_SCRIPT_TOKEN": "saban_secret_token_2026",
+    "VITE_UNIFIED_SPREADSHEET_ID": "1Ie7gKql_EDdrIN9HqunJc9Ey5k0WXXfPRxs0Vp1Bs2c",
+    "VITE_NOA_AI_SPREADSHEET_ID": "1VA9J6n9IYcooO_s2xOpnkvyDQWWQD3pfhh0cnenCkoA"
   }
 }
+
