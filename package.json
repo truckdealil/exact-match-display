@@ -12,7 +12,8 @@
     "format": "prettier --write ."
   },
   "overrides": {
-    "rolldown": "1.2.1"
+    "rolldown": "1.2.1",
+    "@tanstack/react-start": "1.168.60"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",
