@@ -1,13 +1,19 @@
 import { useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Plus, Search } from "lucide-react";
+import { Download, Plus, RefreshCw, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { GlassCard, SectionTitle } from "@/components/glass-card";
 import { StatusBadge } from "@/routes/index";
-import { createRecord, fetchRecords, isSheetsConfigured } from "@/services/sheetsService";
+import {
+  createRecord,
+  fetchRecords,
+  isSheetsConfigured,
+  purgeMockRecords,
+} from "@/services/sheetsService";
 import type { InterfaceName, SyncRecord } from "@/lib/storage";
 import { audioService } from "@/services/audioService";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/data")({
   head: () => ({
@@ -147,6 +153,27 @@ function DataPage() {
               </option>
             ))}
           </select>
+          <button
+            onClick={() => void queryClient.invalidateQueries({ queryKey: ["records"] })}
+            disabled={records.isFetching}
+            title="סנכרן רשומות מגיליון ענן"
+            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-primary/30 bg-primary/10 px-3.5 text-sm font-medium text-primary hover:bg-primary/20 transition-all active:scale-95"
+          >
+            <RefreshCw className={cn("size-4", records.isFetching && "animate-spin")} />
+            סנכרן מהענן
+          </button>
+          <button
+            onClick={async () => {
+              const count = await purgeMockRecords();
+              void queryClient.invalidateQueries({ queryKey: ["records"] });
+              toast.success(`נוקו ${count} נתוני דמה מהזיכרון המקומי`);
+            }}
+            title="מחק כל נתון דמה מהזיכרון"
+            className="inline-flex h-11 items-center gap-2 rounded-2xl border border-destructive/30 bg-destructive/10 px-3 text-sm font-medium text-destructive hover:bg-destructive/20 transition-all active:scale-95"
+          >
+            <Trash2 className="size-4" />
+            נקה דמה
+          </button>
           <button
             onClick={() => create.mutate()}
             className="inline-flex h-11 items-center gap-2 rounded-2xl bg-primary px-4 text-sm font-medium text-primary-foreground transition-transform active:scale-95"

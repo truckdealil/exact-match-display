@@ -40,6 +40,31 @@ export const NOA_AI_SPREADSHEET_ID =
 export const SABAN_SHEET_TAB = "הזמנות"; // Main unified orders tab
 export const LEGACY_SHEET_TAB = "דוח_בוקר_מבצעי";
 
+export const DEFAULT_GOOGLE_APPS_SCRIPT_URL =
+  "https://script.google.com/macros/s/AKfycbwAkBK1Z051WmTvyDsRNrUf3xAS0MOCio9QRdoGyYxQdN66AekWhG_YFAgmKNEl7mR_/exec";
+export const DEFAULT_APPS_SCRIPT_TOKEN = "saban_secret_token_2026";
+
+export function getScheduleAppsScriptEndpoint(): string {
+  if (typeof window !== "undefined") {
+    const custom = localStorage.getItem("saban_custom_apps_script_url");
+    if (custom && custom.trim().startsWith("http")) return custom.trim();
+  }
+  return (
+    (import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined) ||
+    DEFAULT_GOOGLE_APPS_SCRIPT_URL
+  );
+}
+
+export function getScheduleAppsScriptToken(): string {
+  if (typeof window !== "undefined") {
+    const custom = localStorage.getItem("saban_custom_apps_script_token");
+    if (custom && custom.trim()) return custom.trim();
+  }
+  return (
+    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || DEFAULT_APPS_SCRIPT_TOKEN
+  );
+}
+
 export interface ScheduleOrder {
   round_time: string;
   order_id: string; // מספר הזמנה בן 7 ספרות
@@ -77,123 +102,42 @@ export interface StatusNotificationEvent {
 const STORAGE_KEY = "saban_unified_orders_v2";
 const RECENT_UPDATES_KEY = "saban_recent_status_updates_v2";
 
-const INITIAL_SCHEDULE_ORDERS: ScheduleOrder[] = [
-  {
-    round_time: "סבב 1 (08:00)",
-    order_id: "6215710",
-    customer_id: "612108",
-    customer_name: "לי-רן יזום והשקעות (מוצקין 22)",
-    warehouse: "🏭 4️⃣(החרש 10)",
-    address: "מוצקין 22, רעננה",
-    driver: "חכמת (מרצדס מנוף 615-41-002)",
-    items: "2 בלות חול, 40 שק מלט נשר",
-    deposits: '2 בלות (מק"ט 60002), 1 משטח סבן (מק"ט 60060)',
-    big_bags_deposit: 2,
-    pallets_deposit: 1,
-    waze_url:
-      "https://waze.com/ul?q=%D7%9E%D7%95%D7%A6%D7%A7%D7%99%D7%9F%2022%2C%20%D7%A8%D7%A2%D7%A0%D7%A0%D7%94&navigate=yes",
-    status: "יצא לדרך",
-    whatsapp_action: "שדר לחכמת",
-    has_delivery_note: false,
-    phone: "0505669924",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    round_time: "סבב 1 (08:30)",
-    order_id: "6215711",
-    customer_id: "604380",
-    customer_name: "חברת הכל מבראשית (טל ארביב)",
-    warehouse: "🏟️ 1️⃣(התלמיד 6)",
-    address: "שער 14, אוניברסיטת תל אביב",
-    driver: "עלי (איסוזו חלוקה 651-51-701)",
-    items: "35 שק טיח חוץ, 10 כלי עבודה",
-    deposits: '1 משטח סבן (מק"ט 60060)',
-    big_bags_deposit: 0,
-    pallets_deposit: 1,
-    waze_url:
-      "https://waze.com/ul?q=%D7%A9%D7%A2%D7%A8%2014%2C%20%D7%90%D7%95%D7%A0%D7%99%D7%91%D7%A8%D7%A1%D7%99%D7%98%D7%AA%20%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91&navigate=yes",
-    status: "מוכן להעמסה",
-    whatsapp_action: "שדר לעלי",
-    has_delivery_note: false,
-    phone: "0525689416",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    round_time: "סבב 2 (11:00)",
-    order_id: "6215712",
-    customer_id: "616161",
-    customer_name: "עמית ושרית סולברג (איתי)",
-    warehouse: "🏭 4️⃣(החרש 10)",
-    address: "פעמונית 47, הוד השרון",
-    driver: "חכמת (מרצדס מנוף 615-41-002)",
-    items: "4 בלות סומסום, 2 משטחי בלוקים 20",
-    deposits: '4 בלות (מק"ט 60002), 2 משטחי בלוקים (מק"ט 60006)',
-    big_bags_deposit: 4,
-    pallets_deposit: 2,
-    waze_url:
-      "https://waze.com/ul?q=%D7%A4%D7%A2%D7%9E%D7%95%D7%A0%D7%99%D7%AA%2047%2C%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&navigate=yes",
-    status: "בהכנה",
-    whatsapp_action: "שדר לחכמת",
-    has_delivery_note: false,
-    phone: "0548373707",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    round_time: "סבב 2 (11:30)",
-    order_id: "6215713",
-    customer_id: "604368",
-    customer_name: 'ד.ניב שיפוצים (ב"ס חינוך מיוחד)',
-    warehouse: "🏟️ 1️⃣(התלמיד 6)",
-    address: "הבנים 14, כפר סבא",
-    driver: "עלי (איסוזו חלוקה 651-51-701)",
-    items: "2 בלות טיט, 30 שק דבק קרמיקה 109",
-    deposits: '2 בלות (מק"ט 60002), 1 משטח סבן (מק"ט 60060)',
-    big_bags_deposit: 2,
-    pallets_deposit: 1,
-    waze_url:
-      "https://waze.com/ul?q=%D7%94%D7%91%D7%A0%D7%99%D7%9D%2014%2C%20%D7%9B%D7%A4%D7%A8%20%D7%A1%D7%91%D7%90&navigate=yes",
-    status: "בסידור עבודה",
-    whatsapp_action: "שדר לעלי",
-    has_delivery_note: false,
-    phone: "0542108810",
-    timestamp: new Date().toISOString(),
-  },
-  {
-    round_time: "סבב 3 (14:00)",
-    order_id: "6215504",
-    customer_id: "602568",
-    customer_name: "שלום בוקטוס (רועי)",
-    warehouse: "🏭 4️⃣(החרש 10)",
-    address: "הנרייטה סולד 20, הוד השרון",
-    driver: "חכמת (מרצדס מנוף 615-41-002)",
-    items: "1 בלה חול, 15 שק מלט נשר",
-    deposits: '1 בלה (מק"ט 60002)',
-    big_bags_deposit: 1,
-    pallets_deposit: 0,
-    waze_url:
-      "https://waze.com/ul?q=%D7%94%D7%A0%D7%A8%D7%99%D7%99%D7%98%D7%94%20%D7%A1%D7%95%D7%9C%D7%93%2020%2C%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&navigate=yes",
-    status: "סופק במלואו",
-    whatsapp_action: "שדר לחכמת",
-    has_delivery_note: true,
-    phone: "0506707779",
-    timestamp: new Date().toISOString(),
-  },
-];
+// נתוני דמה נוקו לחלוטין (Zero Mock Data) - סנכרון ישיר מול הגיליון בענן
+const INITIAL_SCHEDULE_ORDERS: ScheduleOrder[] = [];
+
+/**
+ * מחיקת נתוני דמה היסטוריים מה-localStorage
+ */
+export function purgeMockScheduleOrders(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const orders = JSON.parse(raw) as ScheduleOrder[];
+    const mockIds = new Set(["6215710", "6215711", "6215712", "6215713", "6215504"]);
+    const hasMock = orders.some((o) => mockIds.has(o.order_id));
+    if (hasMock) {
+      const cleaned = orders.filter((o) => !mockIds.has(o.order_id));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+      window.dispatchEvent(new CustomEvent("saban_schedule_updated", { detail: cleaned }));
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
  * קריאת כל הזמנות הסידור המבצעי מהאחסון
  */
 export function loadScheduleOrders(): ScheduleOrder[] {
-  if (typeof window === "undefined") return INITIAL_SCHEDULE_ORDERS;
+  if (typeof window === "undefined") return [];
+  purgeMockScheduleOrders();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_SCHEDULE_ORDERS));
-      return INITIAL_SCHEDULE_ORDERS;
-    }
+    if (!raw) return [];
     return JSON.parse(raw) as ScheduleOrder[];
   } catch {
-    return INITIAL_SCHEDULE_ORDERS;
+    return [];
   }
 }
 
@@ -281,45 +225,106 @@ export function notifyStatusChange(event: StatusNotificationEvent): void {
 }
 
 /**
+ * נרמול שורת הזמנה מהגיליון (תמיכה בכותרות עברית ואנגלית)
+ */
+export function normalizeSheetOrder(raw: Record<string, unknown>): ScheduleOrder {
+  const round_time = String(raw["סבב ושעה"] || raw["round_time"] || raw["RoundTime"] || "סבב בוקר");
+  const order_id = String(
+    raw["מספר הזמנה"] || raw["order_id"] || raw["OrderId"] || raw["id"] || `ORD-${Date.now()}`,
+  );
+  const customer_id = String(raw["מספר לקוח"] || raw["customer_id"] || raw["CustId"] || "");
+  const customer_name = String(
+    raw["שם לקוח"] ||
+      raw["שם לקוח / אתר"] ||
+      raw["customer_name"] ||
+      raw["CustName"] ||
+      "לקוח כללי",
+  );
+  const warehouse = String(
+    raw["מחסן מקור"] || raw["warehouse"] || raw["Warehouse"] || "מחסן ראשי כפר ברא",
+  );
+  const address = String(
+    raw["כתובת יעד ועיר"] || raw["כתובת יעד"] || raw["address"] || raw["SiteAddress"] || "",
+  );
+  const driver = String(raw["נהג משובץ"] || raw["driver"] || raw["Driver"] || "לשיבוץ");
+  const items = String(
+    raw["פירוט מוצרים וכמויות"] ||
+      raw["פירוט פריטים וכמויות"] ||
+      raw["items"] ||
+      raw["ItemsSummary"] ||
+      "",
+  );
+  const deposits = String(
+    raw["פקדונות (בלות/משטחים)"] || raw["deposits"] || calculateDeposits(items),
+  );
+  const status = String(raw["סטטוס ביצוע"] || raw["status"] || raw["Status"] || "בסידור עבודה");
+  const rawWaze = String(raw["ניווט Waze"] || raw["waze_url"] || "");
+  const waze_url = rawWaze.startsWith("http") ? rawWaze : generateWazeUrl(address);
+  const whatsapp_action = String(
+    raw["שידור WhatsApp"] || raw["whatsapp_action"] || generateWhatsAppAction(driver),
+  );
+
+  return {
+    round_time,
+    order_id,
+    customer_id,
+    customer_name,
+    warehouse,
+    address,
+    driver,
+    items,
+    deposits,
+    waze_url,
+    status,
+    whatsapp_action,
+    has_delivery_note: status.includes("סופק"),
+    timestamp: new Date().toISOString(),
+  };
+}
+
+/**
  * סנכרון מבצעי מול שרת Google Apps Script של גיליון מערכת מאוחדת (1Ie7gKql...)
- * טאב: הזמנות
+ * טאב: הזמנות / דוח_בוקר_מבצעי
  */
 export async function syncScheduleFromSheets(): Promise<{
   success: boolean;
   orders: ScheduleOrder[];
   message: string;
 }> {
-  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
-  const token =
-    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
-
-  if (!endpoint) {
-    const local = loadScheduleOrders();
-    return {
-      success: true,
-      orders: local,
-      message: "טעינה ממאגר שטח מקומי (Apps Script טרם הוגדר)",
-    };
-  }
+  const endpoint = getScheduleAppsScriptEndpoint();
+  const token = getScheduleAppsScriptToken();
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-    const url = `${endpoint}?action=getOrders&token=${encodeURIComponent(token)}&sheetId=${UNIFIED_SPREADSHEET_ID}&tab=${encodeURIComponent(MASTER_TAB)}`;
-    const res = await fetch(url, { signal: controller.signal });
+    // Try primary tab: הזמנות
+    let url = `${endpoint}?action=getOrders&token=${encodeURIComponent(token)}&sheetId=${UNIFIED_SPREADSHEET_ID}&tab=${encodeURIComponent(MASTER_TAB)}`;
+    let res = await fetch(url, { signal: controller.signal });
+
+    let json = res.ok
+      ? ((await res.json()) as { success?: boolean; orders?: Array<Record<string, unknown>> })
+      : null;
+
+    // If no orders on master tab, try fallback tab: דוח_בוקר_מבצעי
+    if (!json?.orders || json.orders.length === 0) {
+      url = `${endpoint}?action=getOrders&token=${encodeURIComponent(token)}&sheetId=${UNIFIED_SPREADSHEET_ID}&tab=${encodeURIComponent(LEGACY_SHEET_TAB)}`;
+      res = await fetch(url, { signal: controller.signal });
+      if (res.ok) {
+        json = (await res.json()) as { success?: boolean; orders?: Array<Record<string, unknown>> };
+      }
+    }
+
     clearTimeout(timeoutId);
 
-    if (res.ok) {
-      const data = (await res.json()) as { success?: boolean; orders?: ScheduleOrder[] };
-      if (data.orders && Array.isArray(data.orders) && data.orders.length > 0) {
-        saveScheduleOrders(data.orders);
-        return {
-          success: true,
-          orders: data.orders,
-          message: `סונכרנו ${data.orders.length} הזמנות מגיליון מערכת מאוחדת (${MASTER_TAB})`,
-        };
-      }
+    if (json?.orders && Array.isArray(json.orders) && json.orders.length > 0) {
+      const normalized = json.orders.map((raw) => normalizeSheetOrder(raw));
+      saveScheduleOrders(normalized);
+      return {
+        success: true,
+        orders: normalized,
+        message: `סונכרנו בהצלחה ${normalized.length} הזמנות חיות מגיליון מערכת מאוחדת`,
+      };
     }
   } catch (err) {
     console.warn("Apps Script sync fallback to local cache:", err);
@@ -329,7 +334,10 @@ export async function syncScheduleFromSheets(): Promise<{
   return {
     success: true,
     orders: localOrders,
-    message: `נטענו ${localOrders.length} הזמנות מהזיכרון המקומי`,
+    message:
+      localOrders.length > 0
+        ? `נטענו ${localOrders.length} הזמנות מהזיכרון המקומי`
+        : "הגיליון ריק כעת מהזמנות פתוחות",
   };
 }
 
@@ -516,9 +524,8 @@ export function update_order_in_sheet(
   }
 
   // Push to Apps Script if connected
-  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
-  const token =
-    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
+  const endpoint = getScheduleAppsScriptEndpoint();
+  const token = getScheduleAppsScriptToken();
   if (endpoint && typeof navigator !== "undefined" && navigator.onLine) {
     void fetch(endpoint, {
       method: "POST",
@@ -573,9 +580,8 @@ export function attachSignatureToOrder(
   saveScheduleOrders(current);
 
   // Send signature to Apps Script
-  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
-  const token =
-    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
+  const endpoint = getScheduleAppsScriptEndpoint();
+  const token = getScheduleAppsScriptToken();
   if (endpoint && typeof navigator !== "undefined" && navigator.onLine) {
     void fetch(endpoint, {
       method: "POST",

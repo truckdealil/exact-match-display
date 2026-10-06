@@ -128,28 +128,38 @@ export function AppShell({ children }: { children: ReactNode }) {
 function BrandMark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <span className="grid size-10 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-lg font-black text-primary-foreground">
-        ל
+      <span className="grid size-10 place-items-center rounded-2xl bg-gradient-to-br from-primary to-accent text-lg font-black text-primary-foreground shadow-sm">
+        ס
       </span>
       <div className={cn(compact && "hidden sm:block")}>
-        <p className="text-sm font-bold leading-tight text-gradient">מרכז שליטה</p>
-        <p className="text-[11px] text-muted-foreground">Luxe Operations Hub</p>
+        <p className="text-sm font-bold leading-tight text-gradient">ח. סבן | נועה AI</p>
+        <p className="text-[11px] text-muted-foreground">מרכז שליטה וסידור לוגיסטי</p>
       </div>
     </div>
   );
 }
 
 function StatusPill({ online, hydrated }: { online: boolean; hydrated: boolean }) {
-  if (!hydrated) return <span className="text-xs text-muted-foreground">בודק חיבור…</span>;
+  if (!hydrated) return <span className="text-xs text-muted-foreground">בודק ענן…</span>;
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-2 rounded-full border border-glass-border bg-glass px-3 py-1.5 text-xs",
-        online ? "text-success" : "text-warning",
-      )}
-    >
-      {online ? <Wifi className="size-3.5" /> : <WifiOff className="size-3.5" />}
-      {online ? "מחובר · סנכרון פעיל" : "לא מקוון · פעולות בתור"}
-    </span>
+    <div className="flex items-center gap-1.5 text-xs">
+      <span
+        className={cn(
+          "inline-flex items-center gap-1.5 rounded-full border border-glass-border bg-glass px-2.5 py-1",
+          online ? "text-success border-emerald-500/30" : "text-warning border-amber-500/30",
+        )}
+        title="סטטוס חיבור לגיליון מערכת מאוחדת בענן"
+      >
+        <span className={cn("size-2 rounded-full", online ? "bg-emerald-400" : "bg-amber-400")} />
+        <span>ענן מאוחדת</span>
+      </span>
+      <span
+        className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-glass-border bg-glass px-2.5 py-1 text-primary border-primary/30"
+        title="מוח לוגיסטי SabanOS פעיל"
+      >
+        <span className="size-2 rounded-full bg-primary animate-pulse" />
+        <span>שרת נועה</span>
+      </span>
+    </div>
   );
 }

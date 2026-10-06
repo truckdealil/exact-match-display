@@ -1,14 +1,23 @@
 import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { Bell, Moon, Sparkles, Sun, Table, Volume2 } from "lucide-react";
+import { Bell, Cloud, Moon, RefreshCw, Sparkles, Sun, Table, Trash2, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { GlassCard, SectionTitle } from "@/components/glass-card";
 import { useSettings } from "@/lib/settings";
 import { audioService } from "@/services/audioService";
 import { NotificationPermissionModal } from "@/components/notification-modal";
 import { currentPermission, isOneSignalConfigured } from "@/services/oneSignal";
-import { isSheetsConfigured } from "@/services/sheetsService";
+import {
+  checkSheetsCloudConnection,
+  getAppsScriptEndpoint,
+  isSheetsConfigured,
+  purgeMockRecords,
+  UNIFIED_SPREADSHEET_ID,
+  NOA_AI_SPREADSHEET_ID,
+} from "@/services/sheetsService";
+import { purgeMockScheduleOrders, syncScheduleFromSheets } from "@/services/scheduleService";
 import { isGeminiConfigured } from "@/services/geminiService";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/settings")({
   head: () => ({
@@ -34,11 +43,43 @@ function SettingsPage() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(
     "unsupported",
   );
+  const [isCheckingCloud, setIsCheckingCloud] = useState(false);
+  const [cloudResult, setCloudResult] = useState<{
+    connected: boolean;
+    message: string;
+    sheets?: string[];
+  } | null>(null);
+
   const geminiOk = isGeminiConfigured();
 
   useEffect(() => {
     setPermission(currentPermission());
+    void checkSheetsCloudConnection().then((res) => setCloudResult(res));
   }, [notifyOpen]);
+
+  const handleTestCloudConnection = async () => {
+    setIsCheckingCloud(true);
+    try {
+      const res = await checkSheetsCloudConnection();
+      setCloudResult(res);
+      if (res.connected) {
+        toast.success(res.message);
+        void audioService.play("success");
+      } else {
+        toast.error(res.message);
+      }
+    } finally {
+      setIsCheckingCloud(false);
+    }
+  };
+
+  const handlePurgeAllMockData = async () => {
+    purgeMockScheduleOrders();
+    const purgedCount = await purgeMockRecords();
+    localStorage.removeItem("saban_unified_orders_v2");
+    toast.success(`נוקו כל נתוני הדמה בהצלחה (${purgedCount} רשומות). מתחבר לסנכרון ענן…`);
+    await syncScheduleFromSheets();
+  };
 
   return (
     <div>
@@ -129,25 +170,68 @@ function SettingsPage() {
         </GlassCard>
 
         <GlassCard delay={0.15}>
-          <SectionTitle title="חיבורים" subtitle="מפתחות סביבה נדרשים" />
-          <div className="space-y-2 text-sm">
-            <ConnectionRow
-              icon={Bell}
-              label="OneSignal"
-              env="VITE_ONESIGNAL_APP_ID"
-              ok={isOneSignalConfigured()}
-            />
+          <SectionTitle title="חיבורי ענן ומערכות" subtitle="Google Sheets, Vercel & AI" />
+          <div className="space-y-3 text-sm">
             <ConnectionRow
               icon={Table}
-              label="Google Sheets"
-              env="VITE_GOOGLE_APPS_SCRIPT_URL"
-              ok={isSheetsConfigured()}
+              label="Google Sheets (מערכת מאוחדת)"
+              env={`Apps Script: ${getAppsScriptEndpoint().slice(0, 45)}…`}
+              ok={cloudResult?.connected ?? isSheetsConfigured()}
             />
+
+            {/* Cloud Details Card */}
+            <div className="rounded-2xl border border-glass-border bg-glass/40 p-3 space-y-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-foreground flex items-center gap-1.5">
+                  <Cloud className="size-3.5 text-primary" />
+                  סטטוס ענן:
+                </span>
+                <span
+                  className={cn(
+                    "font-medium",
+                    cloudResult?.connected ? "text-emerald-400" : "text-amber-400",
+                  )}
+                >
+                  {cloudResult ? cloudResult.message : "בודק חיבור…"}
+                </span>
+              </div>
+              <p className="text-[11px] text-muted-foreground truncate">
+                גיליון יעד: <code className="text-foreground">{UNIFIED_SPREADSHEET_ID}</code>
+              </p>
+              <p className="text-[11px] text-muted-foreground truncate">
+                גיליון נועה: <code className="text-foreground">{NOA_AI_SPREADSHEET_ID}</code>
+              </p>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  onClick={handleTestCloudConnection}
+                  disabled={isCheckingCloud}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground transition-transform active:scale-95 disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("size-3", isCheckingCloud && "animate-spin")} />
+                  {isCheckingCloud ? "בודק…" : "בדוק חיבור לענן עכשיו"}
+                </button>
+                <button
+                  onClick={handlePurgeAllMockData}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/20 transition-colors"
+                >
+                  <Trash2 className="size-3" />
+                  מחק נתוני דמה וסנכרן
+                </button>
+              </div>
+            </div>
+
             <ConnectionRow
               icon={Sparkles}
-              label="Gemini AI"
-              env="VITE_GEMINI_API_KEY"
+              label="Gemini AI (Google AI Studio)"
+              env="VITE_GEMINI_API_KEY (פועל במצב SabanOS מקומי מלא)"
               ok={geminiOk}
+            />
+            <ConnectionRow
+              icon={Bell}
+              label="OneSignal Push"
+              env="VITE_ONESIGNAL_APP_ID"
+              ok={isOneSignalConfigured()}
             />
           </div>
         </GlassCard>
