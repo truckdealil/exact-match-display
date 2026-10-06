@@ -1,6 +1,6 @@
 {
-  "name": "Exact Match Display",
-  "description": "מערכת ניהול תפעולית מתקדמת עם סנכרון Google Sheets, מיקום חי, התראות ועוזר AI.",
+  "name": "ח. סבן | נועה AI — מרכז שליטה וסידור לוגיסטי",
+  "description": "פורטל שטח מבצעי לסידור עבודה והצלבות קומקס מול גיליון מערכת מאוחדת ושרת וואטסאפ מקומי (מותאם סמסונג נוט 23).",
   "permissions": [],
   "capabilities": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

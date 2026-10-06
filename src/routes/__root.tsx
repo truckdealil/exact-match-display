@@ -74,17 +74,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       {
         name: "viewport",
-        content: "width=device-width, initial-scale=1, viewport-fit=cover",
+        content:
+          "width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover",
       },
-      { title: "מרכז שליטה | Luxe Operations Hub" },
+      { title: "ח. סבן | נועה AI — מרכז שליטה וסידור לוגיסטי" },
       {
         name: "description",
-        content: "מערכת ניהול תפעולית מתקדמת עם סנכרון Google Sheets, מיקום חי, התראות ועוזר AI.",
+        content:
+          "פורטל שטח מבצעי לסידור עבודה והצלבות קומקס מול גיליון מערכת מאוחדת ושרת וואטסאפ מקומי (מותאם סמסונג נוט 23).",
       },
-      { name: "theme-color", content: "#0F172A" },
+      { name: "theme-color", content: "#070a11" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
-      { name: "apple-mobile-web-app-title", content: "מרכז שליטה" },
+      { name: "apple-mobile-web-app-title", content: "סבן סידור" },
+      { property: "og:title", content: "ח. סבן | נועה AI — מרכז שליטה וסידור לוגיסטי" },
+      {
+        property: "og:description",
+        content:
+          "פורטל שטח מבצעי לסידור עבודה והצלבות קומקס מול גיליון מערכת מאוחדת ושרת וואטסאפ מקומי (מותאם סמסונג נוט 23).",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],

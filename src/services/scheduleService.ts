@@ -1,40 +1,66 @@
 /**
- * נועה ❤️ | שירות גיליון מבצעי סבן
- * מזהה גיליון: 1VA9J6n9IYcooO_s2xOpnkvyDQWWQD3pfhh0cnenCkoA
- * לשונית עבודה ראשית: דוח_בוקר_מבצעי
+ * ==============================================================================
+ * ח. סבן חומרי בניין (1994) בע״מ | שירות סידור מבצעי ומערכת מאוחדת
+ * ==============================================================================
  *
- * עמודות הגיליון (A עד K):
- * A - סבב ושעה (round_time)
- * B - מספר הזמנה (order_id)
- * C - שם לקוח / אתר (customer_name)
- * D - מחסן מקור (warehouse: 🏭 4️⃣(החרש) או 🏟️ 1️⃣(התלמיד))
- * E - כתובת יעד ועיר (address)
- * F - נהג משובץ (driver: חכמת (מרצדס מנוף) או עלי (משאית איסוזו))
- * G - פירוט מוצרים וכמויות (items)
- * H - פקדונות (deposits: בלות 60002, משטחי סבן 60060, משטחי בלוקים 60006, פטור)
- * I - ניווט Waze (waze_url: https://waze.com/ul?q=...&navigate=yes)
- * J - סטטוס ביצוע (status: בסידור עבודה, בהכנה, מוכן להעמסה, יצא לדרך, סופק, סופק במלואו)
- * K - שידור WhatsApp (whatsapp_action: שדר לחכמת או שדר לעלי)
+ * גיליון יעד ראשי:
+ * מזהה גיליון מערכת מאוחדת: 1Ie7gKql_EDdrIN9HqunJc9Ey5k0WXXfPRxs0Vp1Bs2c
+ * לשונית עבודה ראשית (Master Tab): "הזמנות"
+ *
+ * עמודות טאב הזמנות:
+ * 1. Date (תאריך ושעה)
+ * 2. OrderId (מספר הזמנה)
+ * 3. CustId (מספר לקוח קומקס)
+ * 4. CustName (שם לקוח / אתר)
+ * 5. Warehouse (מחסן מקור: 🏭 החרש 10 או 🏟️ התלמיד 6)
+ * 6. SiteAddress (כתובת יעד ועיר)
+ * 7. ItemsSummary (פירוט פריטים וכמויות)
+ * 8. BigBagDeposits (פקדון בלות 60002 ביחס 1:1)
+ * 9. PalletDeposits (פקדון משטחים 60060 / 60006)
+ * 10. Driver (נהג משובץ)
+ * 11. DriveFolderUrl (תיקיית דרייב תעודות משלוח)
+ * 12. WazeUrl (ניווט Waze)
+ * 13. WhatsAppAction (שידור לוואטסאפ לנהג)
+ * 14. HasDeliveryNote (האם קיימת תעודה חתומה)
+ * 15. Status (סטטוס ביצוע)
  */
 
 import { toast } from "sonner";
 import { audioService } from "./audioService";
 
-export const SABAN_SHEET_ID = "1VA9J6n9IYcooO_s2xOpnkvyDQWWQD3pfhh0cnenCkoA";
-export const SABAN_SHEET_TAB = "דוח_בוקר_מבצעי";
+export const UNIFIED_SPREADSHEET_ID =
+  (import.meta.env["VITE_UNIFIED_SPREADSHEET_ID"] as string | undefined) ||
+  "1Ie7gKql_EDdrIN9HqunJc9Ey5k0WXXfPRxs0Vp1Bs2c";
+export const SABAN_SHEET_ID = UNIFIED_SPREADSHEET_ID;
+export const MASTER_TAB = "הזמנות";
+
+export const NOA_AI_SPREADSHEET_ID =
+  (import.meta.env["VITE_NOA_AI_SPREADSHEET_ID"] as string | undefined) ||
+  "1VA9J6n9IYcooO_s2xOpnkvyDQWWQD3pfhh0cnenCkoA";
+export const SABAN_SHEET_TAB = "הזמנות"; // Main unified orders tab
+export const LEGACY_SHEET_TAB = "דוח_בוקר_מבצעי";
 
 export interface ScheduleOrder {
-  round_time: string; // עמודה A
-  order_id: string; // עמודה B (7 ספרות)
-  customer_name: string; // עמודה C
-  warehouse: string; // עמודה D
-  address: string; // עמודה E
-  driver: string; // עמודה F
-  items: string; // עמודה G
-  deposits: string; // עמודה H
-  waze_url: string; // עמודה I
-  status: string; // עמודה J
-  whatsapp_action: string; // עמודה K
+  round_time: string;
+  order_id: string; // מספר הזמנה בן 7 ספרות
+  customer_id?: string; // מספר לקוח קומקס
+  customer_name: string;
+  warehouse: string;
+  address: string;
+  driver: string;
+  items: string;
+  deposits: string;
+  big_bags_deposit?: number;
+  pallets_deposit?: number;
+  block_pallets_deposit?: number;
+  waze_url: string;
+  status: string;
+  whatsapp_action: string;
+  has_delivery_note?: boolean;
+  signature_base64?: string;
+  site_manager_name?: string;
+  signature_timestamp?: string;
+  phone?: string;
   timestamp?: string;
 }
 
@@ -48,83 +74,108 @@ export interface StatusNotificationEvent {
   warehouse?: string;
 }
 
-const STORAGE_KEY = "saban_schedule_orders_v1";
-const RECENT_UPDATES_KEY = "saban_recent_status_updates_v1";
+const STORAGE_KEY = "saban_unified_orders_v2";
+const RECENT_UPDATES_KEY = "saban_recent_status_updates_v2";
 
 const INITIAL_SCHEDULE_ORDERS: ScheduleOrder[] = [
   {
     round_time: "סבב 1 (08:00)",
     order_id: "6215710",
-    customer_name: "יוסף שפירא - וילה 8",
-    warehouse: "🏭 4️⃣(החרש)",
-    address: "הרצל 42, כפר סבא",
-    driver: "חכמת (מרצדס מנוף)",
-    items: "2 בלות חול, 40 שק מלט",
+    customer_id: "612108",
+    customer_name: "לי-רן יזום והשקעות (מוצקין 22)",
+    warehouse: "🏭 4️⃣(החרש 10)",
+    address: "מוצקין 22, רעננה",
+    driver: "חכמת (מרצדס מנוף 615-41-002)",
+    items: "2 בלות חול, 40 שק מלט נשר",
     deposits: '2 בלות (מק"ט 60002), 1 משטח סבן (מק"ט 60060)',
+    big_bags_deposit: 2,
+    pallets_deposit: 1,
     waze_url:
-      "https://waze.com/ul?q=%D7%94%D7%A8%D7%A6%D7%9C%2042%2C%20%D7%9B%D7%A4%D7%A8%20%D7%A1%D7%91%D7%90&navigate=yes",
+      "https://waze.com/ul?q=%D7%9E%D7%95%D7%A6%D7%A7%D7%99%D7%9F%2022%2C%20%D7%A8%D7%A2%D7%A0%D7%A0%D7%94&navigate=yes",
     status: "יצא לדרך",
     whatsapp_action: "שדר לחכמת",
+    has_delivery_note: false,
+    phone: "0505669924",
     timestamp: new Date().toISOString(),
   },
   {
     round_time: "סבב 1 (08:30)",
     order_id: "6215711",
-    customer_name: 'א.ר. שיווק ובניין בע"מ',
-    warehouse: "🏭 4️⃣(החרש)",
-    address: "החרש 14, רעננה",
-    driver: "עלי (משאית איסוזו)",
+    customer_id: "604380",
+    customer_name: "חברת הכל מבראשית (טל ארביב)",
+    warehouse: "🏟️ 1️⃣(התלמיד 6)",
+    address: "שער 14, אוניברסיטת תל אביב",
+    driver: "עלי (איסוזו חלוקה 651-51-701)",
     items: "35 שק טיח חוץ, 10 כלי עבודה",
     deposits: '1 משטח סבן (מק"ט 60060)',
+    big_bags_deposit: 0,
+    pallets_deposit: 1,
     waze_url:
-      "https://waze.com/ul?q=%D7%94%D7%97%D7%A8%D7%A9%2014%2C%20%D7%A8%D7%A2%D7%A0%D7%A0%D7%94&navigate=yes",
+      "https://waze.com/ul?q=%D7%A9%D7%A2%D7%A8%2014%2C%20%D7%90%D7%95%D7%A0%D7%99%D7%91%D7%A8%D7%A1%D7%99%D7%98%D7%AA%20%D7%AA%D7%9C%20%D7%90%D7%91%D7%99%D7%91&navigate=yes",
     status: "מוכן להעמסה",
     whatsapp_action: "שדר לעלי",
+    has_delivery_note: false,
+    phone: "0525689416",
     timestamp: new Date().toISOString(),
   },
   {
     round_time: "סבב 2 (11:00)",
-    customer_name: "קבלנות גולן - אתר סביוני השרון",
     order_id: "6215712",
-    warehouse: "🏟️ 1️⃣(התלמיד)",
-    address: "ז'בוטינסקי 108, הוד השרון",
-    driver: "חכמת (מרצדס מנוף)",
+    customer_id: "616161",
+    customer_name: "עמית ושרית סולברג (איתי)",
+    warehouse: "🏭 4️⃣(החרש 10)",
+    address: "פעמונית 47, הוד השרון",
+    driver: "חכמת (מרצדס מנוף 615-41-002)",
     items: "4 בלות סומסום, 2 משטחי בלוקים 20",
     deposits: '4 בלות (מק"ט 60002), 2 משטחי בלוקים (מק"ט 60006)',
+    big_bags_deposit: 4,
+    pallets_deposit: 2,
     waze_url:
-      "https://waze.com/ul?q=%D7%96%27%D7%91%D7%95%D7%98%D7%99%D7%A0%D7%A1%D7%A7%D7%99%20108%2C%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&navigate=yes",
+      "https://waze.com/ul?q=%D7%A4%D7%A2%D7%9E%D7%95%D7%A0%D7%99%D7%AA%2047%2C%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&navigate=yes",
     status: "בהכנה",
     whatsapp_action: "שדר לחכמת",
+    has_delivery_note: false,
+    phone: "0548373707",
     timestamp: new Date().toISOString(),
   },
   {
     round_time: "סבב 2 (11:30)",
     order_id: "6215713",
-    customer_name: "דניאל הנדסה ויזמות",
-    warehouse: "🏟️ 1️⃣(התלמיד)",
-    address: "דרך השרון 55, כפר סבא",
-    driver: "עלי (משאית איסוזו)",
-    items: "2 בלות טיט, 30 שק דבק קרמיקה",
+    customer_id: "604368",
+    customer_name: 'ד.ניב שיפוצים (ב"ס חינוך מיוחד)',
+    warehouse: "🏟️ 1️⃣(התלמיד 6)",
+    address: "הבנים 14, כפר סבא",
+    driver: "עלי (איסוזו חלוקה 651-51-701)",
+    items: "2 בלות טיט, 30 שק דבק קרמיקה 109",
     deposits: '2 בלות (מק"ט 60002), 1 משטח סבן (מק"ט 60060)',
+    big_bags_deposit: 2,
+    pallets_deposit: 1,
     waze_url:
-      "https://waze.com/ul?q=%D7%93%D7%A8%D7%9A%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F%2055%2C%20%D7%9B%D7%A4%D7%A8%20%D7%A1%D7%91%D7%90&navigate=yes",
+      "https://waze.com/ul?q=%D7%94%D7%91%D7%A0%D7%99%D7%9D%2014%2C%20%D7%9B%D7%A4%D7%A8%20%D7%A1%D7%91%D7%90&navigate=yes",
     status: "בסידור עבודה",
     whatsapp_action: "שדר לעלי",
+    has_delivery_note: false,
+    phone: "0542108810",
     timestamp: new Date().toISOString(),
   },
   {
-    round_time: "סבב 1 (07:30)",
+    round_time: "סבב 3 (14:00)",
     order_id: "6215504",
-    customer_name: "אבי לוי שיפוצים",
-    warehouse: "🏭 4️⃣(החרש)",
-    address: "הבנים 18, פתח תקווה",
-    driver: "חכמת (מרצדס מנוף)",
-    items: "1 בלה חול, 15 שק מלט",
+    customer_id: "602568",
+    customer_name: "שלום בוקטוס (רועי)",
+    warehouse: "🏭 4️⃣(החרש 10)",
+    address: "הנרייטה סולד 20, הוד השרון",
+    driver: "חכמת (מרצדס מנוף 615-41-002)",
+    items: "1 בלה חול, 15 שק מלט נשר",
     deposits: '1 בלה (מק"ט 60002)',
+    big_bags_deposit: 1,
+    pallets_deposit: 0,
     waze_url:
-      "https://waze.com/ul?q=%D7%94%D7%91%D7%A0%D7%99%D7%9D%2018%2C%20%D7%A4%D7%AA%D7%97%20%D7%AA%D7%A7%D7%95%D7%95%D7%94&navigate=yes",
-    status: "סופק",
+      "https://waze.com/ul?q=%D7%94%D7%A0%D7%A8%D7%99%D7%99%D7%98%D7%94%20%D7%A1%D7%95%D7%9C%D7%93%2020%2C%20%D7%94%D7%95%D7%93%20%D7%94%D7%A9%D7%A8%D7%95%D7%9F&navigate=yes",
+    status: "סופק במלואו",
     whatsapp_action: "שדר לחכמת",
+    has_delivery_note: true,
+    phone: "0506707779",
     timestamp: new Date().toISOString(),
   },
 ];
@@ -173,10 +224,15 @@ export function loadRecentStatusUpdates(): StatusNotificationEvent[] {
 }
 
 /**
- * הצגת התראת Toast בעברית בזמן אמת לראמי בעת עדכון סטטוס הזמנה
+ * הצגת התראת Toast בעברית בזמן אמת לראמי בעת עדכון סטטוס הזמנה + רטט Haptic
  */
 export function notifyStatusChange(event: StatusNotificationEvent): void {
   const { order_id, customer_name, newStatus, driver } = event;
+
+  // Samsung Note 23 / S23 Ultra haptic pulse
+  if (typeof navigator !== "undefined" && navigator.vibrate) {
+    navigator.vibrate([20, 30]);
+  }
 
   if (newStatus.includes("סופק במלואו") || newStatus === "סופק במלואו") {
     toast.success(`נועה עדכנה סטטוס: סופק במלואו! ✅`, {
@@ -186,7 +242,7 @@ export function notifyStatusChange(event: StatusNotificationEvent): void {
     void audioService.play("success");
   } else if (newStatus.includes("סופק")) {
     toast.success(`נועה עדכנה סטטוס: סופק ✅`, {
-      description: `הזמנה ${order_id} (${customer_name}) עודכנה ל-סופק בגיליון ${SABAN_SHEET_TAB}`,
+      description: `הזמנה ${order_id} (${customer_name}) עודכנה ל-סופק במערכת מאוחדת`,
       duration: 6000,
     });
     void audioService.play("success");
@@ -202,11 +258,6 @@ export function notifyStatusChange(event: StatusNotificationEvent): void {
       duration: 5500,
     });
     void audioService.play("alert");
-  } else if (newStatus.includes("בהכנה")) {
-    toast(`נועה עדכנה סטטוס: בהכנה ⚙️`, {
-      description: `הזמנה ${order_id} (${customer_name}) נכנסה להכנה בסידור`,
-      duration: 5000,
-    });
   } else {
     toast(`נועה עדכנה סטטוס הזמנה 📋`, {
       description: `הזמנה ${order_id} (${customer_name}) עודכנה ל-"${newStatus}"`,
@@ -219,13 +270,9 @@ export function notifyStatusChange(event: StatusNotificationEvent): void {
     try {
       const stored = localStorage.getItem(RECENT_UPDATES_KEY);
       const list = stored ? (JSON.parse(stored) as StatusNotificationEvent[]) : [];
-      const updatedList = [
-        event,
-        ...list.filter(
-          (item) => item.order_id !== event.order_id || item.timestamp !== event.timestamp,
-        ),
-      ].slice(0, 25);
-      localStorage.setItem(RECENT_UPDATES_KEY, JSON.stringify(updatedList));
+      list.unshift(event);
+      if (list.length > 20) list.pop();
+      localStorage.setItem(RECENT_UPDATES_KEY, JSON.stringify(list));
       window.dispatchEvent(new CustomEvent("saban_order_status_updated", { detail: event }));
     } catch {
       /* ignore */
@@ -234,149 +281,137 @@ export function notifyStatusChange(event: StatusNotificationEvent): void {
 }
 
 /**
- * הצגת התראת Toast בעברית בעת הקלדת הזמנה חדשה לגיליון
+ * סנכרון מבצעי מול שרת Google Apps Script של גיליון מערכת מאוחדת (1Ie7gKql...)
+ * טאב: הזמנות
  */
-export function notifyNewOrder(order: ScheduleOrder): void {
-  toast.success(`נועה הקלידה הזמנה חדשה לגיליון! 📝`, {
-    description: `הזמנה ${order.order_id} (${order.customer_name}) • ${order.round_time} • ${order.driver}`,
-    duration: 6500,
-  });
-  void audioService.play("alert");
+export async function syncScheduleFromSheets(): Promise<{
+  success: boolean;
+  orders: ScheduleOrder[];
+  message: string;
+}> {
+  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
+  const token =
+    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
 
-  if (typeof window !== "undefined") {
-    try {
-      const event: StatusNotificationEvent = {
-        order_id: order.order_id,
-        customer_name: order.customer_name,
-        newStatus: order.status,
-        driver: order.driver,
-        warehouse: order.warehouse,
-        timestamp: order.timestamp || new Date().toISOString(),
-      };
-      const stored = localStorage.getItem(RECENT_UPDATES_KEY);
-      const list = stored ? (JSON.parse(stored) as StatusNotificationEvent[]) : [];
-      const updatedList = [event, ...list].slice(0, 25);
-      localStorage.setItem(RECENT_UPDATES_KEY, JSON.stringify(updatedList));
-      window.dispatchEvent(new CustomEvent("saban_order_status_updated", { detail: event }));
-    } catch {
-      /* ignore */
-    }
+  if (!endpoint) {
+    const local = loadScheduleOrders();
+    return {
+      success: true,
+      orders: local,
+      message: "טעינה ממאגר שטח מקומי (Apps Script טרם הוגדר)",
+    };
   }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+    const url = `${endpoint}?action=getOrders&token=${encodeURIComponent(token)}&sheetId=${UNIFIED_SPREADSHEET_ID}&tab=${encodeURIComponent(MASTER_TAB)}`;
+    const res = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
+    if (res.ok) {
+      const data = (await res.json()) as { success?: boolean; orders?: ScheduleOrder[] };
+      if (data.orders && Array.isArray(data.orders) && data.orders.length > 0) {
+        saveScheduleOrders(data.orders);
+        return {
+          success: true,
+          orders: data.orders,
+          message: `סונכרנו ${data.orders.length} הזמנות מגיליון מערכת מאוחדת (${MASTER_TAB})`,
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("Apps Script sync fallback to local cache:", err);
+  }
+
+  const localOrders = loadScheduleOrders();
+  return {
+    success: true,
+    orders: localOrders,
+    message: `נטענו ${localOrders.length} הזמנות מהזיכרון המקומי`,
+  };
 }
 
 /**
- * חישוב פקדונות אוטומטי קפדני לפי חוקי סבן
- * בלות: מק"ט 60002 (יחס 1:1 עבור חול, סומסום, טיט, חמרה)
- * משטחי סבן: מק"ט 60060 (משטח לכל 35-40 שקים)
- * משטחי בלוקים: מק"ט 60006
- * פטור: להובלות יבשות/ללא פריקה
+ * חישוב פקדונות מדויק:
+ * - בלות: מק"ט 60002 (יחס 1:1 לחול, סומסום, טיט, חמרה, מצע)
+ * - משטחי סבן: מק"ט 60060 (משטח לכל 38-40 שקים)
+ * - משטחי בלוקים: מק"ט 60006
  */
-export function calculateDeposits(items: string): string {
+export function calculateDeposits(itemsText: string): string {
   const parts: string[] = [];
-  const lower = items.toLowerCase();
+  const lower = itemsText.toLowerCase();
 
-  // 1. בלות: מק"ט 60002 יחס 1:1
-  const belaMatch = items.match(/(\d+)\s*(?:בלות|בלה|בלת)/);
-  if (belaMatch) {
-    const count = parseInt(belaMatch[1], 10);
-    if (count > 0) {
-      parts.push(`${count} בלות (מק"ט 60002)`);
-    }
-  } else if (lower.includes("בלה") || lower.includes("בלות")) {
-    parts.push(`1 בלה (מק"ט 60002)`);
+  const bigBagMatch = itemsText.match(/(\d+)\s*(?:בלות|בלה|שק גדול)/);
+  let bigBags = bigBagMatch ? parseInt(bigBagMatch[1], 10) : 0;
+  if (!bigBags && (lower.includes("בלה") || lower.includes("חול") || lower.includes("סומסום"))) {
+    bigBags = 1;
   }
 
-  // 2. משטחי סבן: מק"ט 60060 (משטח לכל 35-40 שקים)
-  const bagsMatch = items.match(/(\d+)\s*(?:שקים|שק|שקי)/);
-  if (bagsMatch) {
-    const bagsCount = parseInt(bagsMatch[1], 10);
-    const pallets = Math.ceil(bagsCount / 38);
-    if (pallets > 0) {
-      parts.push(`${pallets} משטח סבן (מק"ט 60060)`);
-    }
+  if (bigBags > 0) {
+    parts.push(`${bigBags} בלות (מק"ט 60002)`);
   }
 
-  // 3. משטחי בלוקים: מק"ט 60006
-  if (lower.includes("בלוק") || lower.includes("בלוקים")) {
-    const blockPalletMatch = items.match(/(\d+)\s*(?:משטחי בלוק|משטחים בלוק|משטח בלוק)/);
-    if (blockPalletMatch) {
-      parts.push(`${blockPalletMatch[1]} משטחי בלוקים (מק"ט 60006)`);
-    } else {
-      parts.push(`משטח בלוקים (מק"ט 60006)`);
-    }
+  const bagsMatch = itemsText.match(/(\d+)\s*(?:שק|שקים|מלט|טיח|דבק)/);
+  const bags = bagsMatch ? parseInt(bagsMatch[1], 10) : 0;
+
+  if (bags >= 35 || lower.includes("משטח מלט") || lower.includes("משטח דבק")) {
+    const pallets = Math.max(1, Math.ceil(bags / 40));
+    parts.push(`${pallets} משטח סבן (מק"ט 60060)`);
   }
 
-  if (parts.length === 0) {
-    return "פטור (ללא פקדונות)";
+  if (lower.includes("בלוק")) {
+    const blocksMatch = itemsText.match(/(\d+)\s*(?:בלוק|משטחי בלוקים|משטח בלוק)/);
+    const blockPallets = blocksMatch ? Math.max(1, parseInt(blocksMatch[1], 10)) : 1;
+    parts.push(`${blockPallets} משטחי בלוקים (מק"ט 60006)`);
   }
-  return parts.join(", ");
+
+  return parts.length > 0 ? parts.join(", ") : "פטור מפקדונות";
 }
 
-/**
- * חילול קישור Waze
- */
 export function generateWazeUrl(address: string): string {
-  return `https://waze.com/ul?q=${encodeURIComponent(address.trim())}&navigate=yes`;
+  return `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
 }
 
-/**
- * חילול פעולת WhatsApp
- */
 export function generateWhatsAppAction(driver: string): string {
   if (driver.includes("חכמת")) return "שדר לחכמת";
   if (driver.includes("עלי")) return "שדר לעלי";
-  return `שדר ל-${driver}`;
+  return "שדר לנהג";
 }
 
 /**
- * כלי 1: get_schedule_orders
- * שליפת שורות מגיליון דוח_בוקר_מבצעי
+ * שליפת הזמנות עם סינון
  */
 export function get_schedule_orders(filters?: {
   filter_driver?: string;
   filter_status?: string;
   date?: string;
-}): {
-  sheet_id: string;
-  tab_name: string;
-  count: number;
-  orders: ScheduleOrder[];
-} {
+}): { success: boolean; count: number; orders: ScheduleOrder[] } {
   const allOrders = loadScheduleOrders();
-  let result = [...allOrders];
+  let filtered = allOrders;
 
   if (filters?.filter_driver) {
-    const driverQuery = filters.filter_driver.toLowerCase();
-    result = result.filter((o) => o.driver.toLowerCase().includes(driverQuery));
+    const d = filters.filter_driver.toLowerCase();
+    filtered = filtered.filter((o) => o.driver.toLowerCase().includes(d));
   }
 
   if (filters?.filter_status) {
-    const statusQuery = filters.filter_status.toLowerCase();
-    result = result.filter((o) => o.status.toLowerCase().includes(statusQuery));
-  }
-
-  if (filters?.date) {
-    const dateQuery = filters.date.toLowerCase();
-    result = result.filter(
-      (o) =>
-        o.round_time.toLowerCase().includes(dateQuery) ||
-        (o.timestamp && o.timestamp.includes(dateQuery)),
-    );
+    const s = filters.filter_status.toLowerCase();
+    filtered = filtered.filter((o) => o.status.toLowerCase().includes(s));
   }
 
   return {
-    sheet_id: SABAN_SHEET_ID,
-    tab_name: SABAN_SHEET_TAB,
-    count: result.length,
-    orders: result,
+    success: true,
+    count: filtered.length,
+    orders: filtered,
   };
 }
 
 /**
- * כלי 2: append_order_to_sheet
- * הקלדת שורת הזמנה חדשה לגיליון דוח_בוקר_מבצעי (עמודות A עד K)
+ * הקלדת שורת הזמנה חדשה לגיליון מערכת מאוחדת
  */
-export function append_order_to_sheet(order_data: {
+export function append_order_to_sheet(orderData: {
   round_time: string;
   order_id: string;
   customer_name: string;
@@ -388,204 +423,173 @@ export function append_order_to_sheet(order_data: {
   waze_url?: string;
   status?: string;
   whatsapp_action?: string;
-}): {
-  success: boolean;
-  message: string;
-  order: ScheduleOrder;
-  sheet_id: string;
-  tab_name: string;
-} {
-  const currentOrders = loadScheduleOrders();
+  phone?: string;
+}): { success: boolean; order: ScheduleOrder } {
+  const current = loadScheduleOrders();
 
-  // Normalize warehouse
-  let normalizedWarehouse = order_data.warehouse;
-  if (normalizedWarehouse.includes("החרש") || normalizedWarehouse.includes("4")) {
-    normalizedWarehouse = "🏭 4️⃣(החרש)";
-  } else if (normalizedWarehouse.includes("תלמיד") || normalizedWarehouse.includes("1")) {
-    normalizedWarehouse = "🏟️ 1️⃣(התלמיד)";
-  }
-
-  // Normalize driver
-  let normalizedDriver = order_data.driver;
-  if (normalizedDriver.includes("חכמת") || normalizedDriver.includes("מנוף")) {
-    normalizedDriver = "חכמת (מרצדס מנוף)";
-  } else if (normalizedDriver.includes("עלי") || normalizedDriver.includes("איסוזו")) {
-    normalizedDriver = "עלי (משאית איסוזו)";
-  }
-
-  // Calculate deposits if not provided
-  const deposits = order_data.deposits?.trim()
-    ? order_data.deposits
-    : calculateDeposits(order_data.items);
-
-  // Generate Waze URL
-  const waze_url = order_data.waze_url?.trim()
-    ? order_data.waze_url
-    : generateWazeUrl(order_data.address);
-
-  // Generate WhatsApp action
-  const whatsapp_action = order_data.whatsapp_action?.trim()
-    ? order_data.whatsapp_action
-    : generateWhatsAppAction(normalizedDriver);
-
-  const status = order_data.status?.trim() || "בסידור עבודה";
-
-  // Ensure 7-digit order id
-  let cleanOrderId = order_data.order_id.replace(/\D/g, "");
-  if (!cleanOrderId) {
-    cleanOrderId = String(6215700 + currentOrders.length + 1);
-  }
+  const deposits = orderData.deposits || calculateDeposits(orderData.items);
+  const waze_url = orderData.waze_url || generateWazeUrl(orderData.address);
+  const status = orderData.status || "בסידור עבודה";
+  const whatsapp_action = orderData.whatsapp_action || generateWhatsAppAction(orderData.driver);
 
   const newOrder: ScheduleOrder = {
-    round_time: order_data.round_time,
-    order_id: cleanOrderId,
-    customer_name: order_data.customer_name,
-    warehouse: normalizedWarehouse,
-    address: order_data.address,
-    driver: normalizedDriver,
-    items: order_data.items,
+    ...orderData,
     deposits,
     waze_url,
     status,
     whatsapp_action,
+    has_delivery_note: false,
     timestamp: new Date().toISOString(),
   };
 
-  const updatedOrders = [newOrder, ...currentOrders.filter((o) => o.order_id !== cleanOrderId)];
-  saveScheduleOrders(updatedOrders);
+  const updated = [newOrder, ...current];
+  saveScheduleOrders(updated);
 
-  // Trigger Toast Notification in Hebrew to Rami
-  notifyNewOrder(newOrder);
-
-  // Push to backend script if endpoint configured
-  const scriptEndpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
-  if (scriptEndpoint && typeof navigator !== "undefined" && navigator.onLine) {
-    void fetch(scriptEndpoint, {
+  // Send to Apps Script endpoint
+  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
+  const token =
+    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
+  if (endpoint && typeof navigator !== "undefined" && navigator.onLine) {
+    void fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "append_order_to_sheet",
-        sheet_id: SABAN_SHEET_ID,
-        tab_name: SABAN_SHEET_TAB,
-        order: newOrder,
+        action: "injectNewOrder",
+        token,
+        unifiedSheetId: UNIFIED_SPREADSHEET_ID,
+        targetTab: MASTER_TAB,
+        orderData: newOrder,
       }),
     }).catch(() => {
-      /* best effort */
+      /* ignore */
     });
   }
 
-  return {
-    success: true,
-    message: "ההזמנה נקלטה והוקלדה בהצלחה לשורה חדשה בגיליון נועה!",
-    order: newOrder,
-    sheet_id: SABAN_SHEET_ID,
-    tab_name: SABAN_SHEET_TAB,
-  };
+  return { success: true, order: newOrder };
 }
 
 /**
- * כלי 3: update_order_in_sheet
- * עדכון סטטוס / שיבוץ נהג / פרטי הזמנה קיימת
+ * עדכון סטטוס ביצוע או שיבוץ נהג
  */
 export function update_order_in_sheet(
   order_id: string,
   updates: {
     status?: string;
     driver?: string;
-    notes?: string;
     warehouse?: string;
-    round_time?: string;
+    notes?: string;
   },
-): {
-  success: boolean;
-  message: string;
-  order: ScheduleOrder | null;
-  sheet_id: string;
-  tab_name: string;
-} {
-  const currentOrders = loadScheduleOrders();
-  const cleanId = order_id.replace(/\D/g, "");
-  const targetIndex = currentOrders.findIndex(
-    (o) => o.order_id === cleanId || o.order_id === order_id,
-  );
+): { success: boolean; order?: ScheduleOrder; message: string } {
+  const current = loadScheduleOrders();
+  const index = current.findIndex((o) => o.order_id === order_id);
 
-  if (targetIndex === -1) {
+  if (index === -1) {
     return {
       success: false,
-      message: `הזמנה מספר ${order_id} לא נמצאה בגיליון הסידור.`,
-      order: null,
-      sheet_id: SABAN_SHEET_ID,
-      tab_name: SABAN_SHEET_TAB,
+      message: `הזמנה ${order_id} לא נמצאה בסידור`,
     };
   }
 
-  const existing = currentOrders[targetIndex];
-  let updatedDriver = existing.driver;
-  if (updates.driver) {
-    if (updates.driver.includes("חכמת")) updatedDriver = "חכמת (מרצדס מנוף)";
-    else if (updates.driver.includes("עלי")) updatedDriver = "עלי (משאית איסוזו)";
-    else updatedDriver = updates.driver;
-  }
-
-  const updatedStatus = updates.status || existing.status;
-  const statusChanged = Boolean(updates.status && updates.status !== existing.status);
-  const driverChanged = Boolean(updates.driver && updatedDriver !== existing.driver);
-
+  const existing = current[index];
+  const oldStatus = existing.status;
   const updatedOrder: ScheduleOrder = {
     ...existing,
-    driver: updatedDriver,
-    status: updatedStatus,
-    round_time: updates.round_time || existing.round_time,
-    whatsapp_action: updates.driver
-      ? generateWhatsAppAction(updatedDriver)
-      : existing.whatsapp_action,
+    ...updates,
+    status: updates.status || existing.status,
+    driver: updates.driver || existing.driver,
+    warehouse: updates.warehouse || existing.warehouse,
   };
 
-  currentOrders[targetIndex] = updatedOrder;
-  saveScheduleOrders(currentOrders);
+  current[index] = updatedOrder;
+  saveScheduleOrders(current);
 
-  // Trigger Toast Notification in Hebrew for Rami in real time
-  if (statusChanged) {
+  if (updates.status && updates.status !== oldStatus) {
     notifyStatusChange({
-      order_id: cleanId,
+      order_id,
       customer_name: existing.customer_name,
-      oldStatus: existing.status,
-      newStatus: updatedStatus,
-      driver: updatedDriver,
-      warehouse: existing.warehouse,
+      oldStatus,
+      newStatus: updates.status,
+      driver: updatedOrder.driver,
       timestamp: new Date().toISOString(),
+      warehouse: updatedOrder.warehouse,
     });
-  } else if (driverChanged) {
-    toast(`נועה עדכנה שיבוץ נהג בגיליון 🔄`, {
-      description: `הזמנה ${cleanId} (${existing.customer_name}) הועברה ל-${updatedDriver}`,
-      duration: 6000,
-    });
-    void audioService.play("alert");
   }
 
-  // Push update to Google Sheets endpoint if live
-  const scriptEndpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
-  if (scriptEndpoint && typeof navigator !== "undefined" && navigator.onLine) {
-    void fetch(scriptEndpoint, {
+  // Push to Apps Script if connected
+  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
+  const token =
+    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
+  if (endpoint && typeof navigator !== "undefined" && navigator.onLine) {
+    void fetch(endpoint, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        action: "update_order_in_sheet",
-        sheet_id: SABAN_SHEET_ID,
-        tab_name: SABAN_SHEET_TAB,
-        order_id: cleanId,
+        action: "updateOrderStatus",
+        token,
+        unifiedSheetId: UNIFIED_SPREADSHEET_ID,
+        targetTab: MASTER_TAB,
+        orderId: order_id,
         updates,
       }),
     }).catch(() => {
-      /* best effort */
+      /* queue handles */
     });
   }
 
   return {
     success: true,
-    message: `הזמנה ${cleanId} עודכנה בהצלחה בגיליון דוח_בוקר_מבצעי!`,
     order: updatedOrder,
-    sheet_id: SABAN_SHEET_ID,
-    tab_name: SABAN_SHEET_TAB,
+    message: `הזמנה ${order_id} עודכנה בהצלחה בגיליון מערכת מאוחדת`,
   };
+}
+
+/**
+ * הצמדת חתימת שטח דיגיטלית (S-Pen) להזמנה
+ */
+export function attachSignatureToOrder(
+  order_id: string,
+  signatureData: {
+    signatureBase64: string;
+    siteManagerName: string;
+    timestamp: string;
+  },
+): { success: boolean; order?: ScheduleOrder } {
+  const current = loadScheduleOrders();
+  const index = current.findIndex((o) => o.order_id === order_id);
+
+  if (index === -1) return { success: false };
+
+  const existing = current[index];
+  const updatedOrder: ScheduleOrder = {
+    ...existing,
+    signature_base64: signatureData.signatureBase64,
+    site_manager_name: signatureData.siteManagerName,
+    signature_timestamp: signatureData.timestamp,
+    has_delivery_note: true,
+    status: existing.status.includes("סופק") ? existing.status : "סופק במלואו",
+  };
+
+  current[index] = updatedOrder;
+  saveScheduleOrders(current);
+
+  // Send signature to Apps Script
+  const endpoint = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | undefined;
+  const token =
+    (import.meta.env["VITE_APPS_SCRIPT_TOKEN"] as string | undefined) || "saban_secret_token_2026";
+  if (endpoint && typeof navigator !== "undefined" && navigator.onLine) {
+    void fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "attachSignature",
+        token,
+        unifiedSheetId: UNIFIED_SPREADSHEET_ID,
+        targetTab: MASTER_TAB,
+        orderId: order_id,
+        signatureData,
+      }),
+    }).catch(() => {});
+  }
+
+  return { success: true, order: updatedOrder };
 }

@@ -10,6 +10,30 @@ const ENDPOINT = import.meta.env["VITE_GOOGLE_APPS_SCRIPT_URL"] as string | unde
 
 export const isSheetsConfigured = () => Boolean(ENDPOINT);
 
+export async function checkSheetsCloudConnection(): Promise<{
+  connected: boolean;
+  message: string;
+}> {
+  if (!ENDPOINT) {
+    return { connected: false, message: "Apps Script טרם הוגדר" };
+  }
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3500);
+    const res = await fetch(`${ENDPOINT}?action=ping`, { signal: controller.signal });
+    clearTimeout(timeoutId);
+    return {
+      connected: res.ok,
+      message: res.ok ? "מחובר לגיליון מערכת מאוחדת בענן" : `סטטוס: ${res.status}`,
+    };
+  } catch {
+    return {
+      connected: false,
+      message: "הענן אינו מגיב (סנכרון במצב שטח מקומי)",
+    };
+  }
+}
+
 const DEMO: SyncRecord[] = [
   {
     id: "rec-1001",
