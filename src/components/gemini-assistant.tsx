@@ -2,23 +2,17 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  AlertTriangle,
+  Bell,
   Bot,
-  CheckCircle2,
   ChevronDown,
-  Clock,
   Copy,
-  Database,
   ExternalLink,
   Heart,
-  Layers,
-  MapPin,
   RefreshCw,
   Send,
   Sparkles,
+  TableProperties,
   Trash2,
-  Wifi,
-  WifiOff,
   X,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -29,6 +23,17 @@ import {
   type ChatTurn,
   type OperationalDataSnapshot,
 } from "@/services/geminiService";
+import {
+  pendingDictionaryUpdatesStore,
+  pendingRamiOrdersStore,
+} from "@/services/sabanLogicService";
+import {
+  loadRecentStatusUpdates,
+  loadScheduleOrders,
+  SABAN_SHEET_TAB,
+  type ScheduleOrder,
+  type StatusNotificationEvent,
+} from "@/services/scheduleService";
 import { fetchRecords } from "@/services/sheetsService";
 import { readAll, type PendingAction } from "@/lib/storage";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -45,12 +50,42 @@ export function GeminiAssistant() {
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [scheduleOrders, setScheduleOrders] = useState<ScheduleOrder[]>([]);
+  const [recentUpdates, setRecentUpdates] = useState<StatusNotificationEvent[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const configured = isGeminiConfigured();
   const { online, soundEnabled } = useSettings();
   const { position } = useGeolocation();
+
+  // Load schedule orders and real-time status update notifications
+  useEffect(() => {
+    setScheduleOrders(loadScheduleOrders());
+    setRecentUpdates(loadRecentStatusUpdates());
+
+    const handleScheduleUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent<ScheduleOrder[]>;
+      if (customEvent.detail) {
+        setScheduleOrders(customEvent.detail);
+      } else {
+        setScheduleOrders(loadScheduleOrders());
+      }
+    };
+
+    const handleStatusUpdate = () => {
+      setRecentUpdates(loadRecentStatusUpdates());
+      setScheduleOrders(loadScheduleOrders());
+    };
+
+    window.addEventListener("saban_schedule_updated", handleScheduleUpdate);
+    window.addEventListener("saban_order_status_updated", handleStatusUpdate);
+
+    return () => {
+      window.removeEventListener("saban_schedule_updated", handleScheduleUpdate);
+      window.removeEventListener("saban_order_status_updated", handleStatusUpdate);
+    };
+  }, []);
 
   // Real operational queries
   const recordsQuery = useQuery({ queryKey: ["records"], queryFn: fetchRecords });
@@ -65,6 +100,10 @@ export function GeminiAssistant() {
   const syncedCount = records.filter((r) => r.status === "synced").length;
   const pendingCount = records.filter((r) => r.status === "pending").length;
   const failedCount = records.filter((r) => r.status === "failed").length;
+
+  const hikmatOrdersCount = scheduleOrders.filter((o) => o.driver.includes("חכמת")).length;
+  const aliOrdersCount = scheduleOrders.filter((o) => o.driver.includes("עלי")).length;
+  const deliveredOrdersCount = scheduleOrders.filter((o) => o.status.includes("סופק")).length;
 
   const dataSnapshot: OperationalDataSnapshot = useMemo(
     () => ({
@@ -103,13 +142,15 @@ export function GeminiAssistant() {
 
   const refreshOperationalData = async () => {
     setIsRefreshing(true);
+    setScheduleOrders(loadScheduleOrders());
+    setRecentUpdates(loadRecentStatusUpdates());
     await Promise.allSettled([
       queryClient.invalidateQueries({ queryKey: ["records"] }),
       queryClient.invalidateQueries({ queryKey: ["queue"] }),
     ]);
     setIsRefreshing(false);
-    toast("נתוני המערכת רועננו בהצלחה", {
-      description: `${records.length} רשומות מקושרות כעת לעוזר ה-AI`,
+    toast("גיליון הסידור המבצעי רוענן", {
+      description: `${scheduleOrders.length} הזמנות פעילות ב-${SABAN_SHEET_TAB}`,
     });
   };
 
@@ -121,7 +162,7 @@ export function GeminiAssistant() {
   const copyText = (text: string) => {
     if (!text) return;
     void navigator.clipboard.writeText(text);
-    toast.success("התשובה הועתקה ללוח");
+    toast.success("הטקסט הועתק ללוח");
   };
 
   const send = async (text: string) => {
@@ -151,14 +192,16 @@ export function GeminiAssistant() {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
       }
 
+      // Re-load schedule orders and updates after streaming in case status update or append happened
+      setScheduleOrders(loadScheduleOrders());
+      setRecentUpdates(loadRecentStatusUpdates());
+
       if (soundEnabled) {
         void audioService.play("alert");
       }
     } catch (err: unknown) {
       const errorMsg =
-        err instanceof Error && err.message
-          ? err.message
-          : "אירעה שגיאה בקבלת תשובה מ-Google AI Studio.";
+        err instanceof Error && err.message ? err.message : "אירעה שגיאה בקבלת מענה מנועה.";
       setTurns((prev) => [
         ...prev.slice(0, -1),
         { role: "model", text: errorMsg, timestamp: Date.now() },
@@ -187,27 +230,26 @@ export function GeminiAssistant() {
                 setOpen(true);
                 setMinimized(false);
               }}
-              aria-label="פתח בקרת תעודות נועה"
+              aria-label="פתח בקרת סידור נועה"
               className="group relative flex items-center gap-2.5 rounded-full border border-glass-border bg-gradient-to-r from-primary to-accent p-3 text-primary-foreground shadow-xl shadow-primary/20 backdrop-blur-xl transition-all duration-300 hover:shadow-primary/40 lg:px-4 lg:py-3"
             >
               <div className="relative">
                 <Sparkles className="size-5 transition-transform duration-300 group-hover:rotate-12" />
-                {failedCount > 0 ? (
-                  <span className="absolute -top-1.5 -right-1.5 flex size-3 items-center justify-center rounded-full bg-destructive text-[8px] font-bold text-white ring-2 ring-background">
-                    {failedCount}
-                  </span>
-                ) : (
-                  <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-400 ring-1 ring-background" />
-                )}
+                <span className="absolute -bottom-0.5 -right-0.5 size-2 rounded-full bg-emerald-400 ring-1 ring-background" />
               </div>
 
               <div className="hidden text-right lg:block">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <p className="text-xs font-bold leading-none tracking-tight">
-                    נועה ❤️ | בקרת תעודות
+                    נועה AI ❤️ | מוח לוגיסטי SabanOS
                   </p>
+                  {pendingDictionaryUpdatesStore.size > 0 || pendingRamiOrdersStore.size > 0 ? (
+                    <span className="rounded-full bg-emerald-400/90 px-1.5 py-0.2 text-[9px] font-bold text-black animate-pulse">
+                      אישור 1
+                    </span>
+                  ) : null}
                 </div>
-                <p className="mt-0.5 text-[10px] opacity-80">{records.length} מסמכים לבקרה</p>
+                <p className="mt-0.5 text-[10px] opacity-80">הצלבת קומקס · סדרנית צל · אישור 1</p>
               </div>
             </motion.button>
           </motion.div>
@@ -222,7 +264,7 @@ export function GeminiAssistant() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 40, scale: 0.95 }}
             transition={{ type: "spring", stiffness: 300, damping: 28 }}
-            className="glass-strong fixed inset-x-3 bottom-20 z-50 flex h-[620px] max-h-[85vh] flex-col rounded-3xl border border-glass-border shadow-2xl backdrop-blur-2xl sm:inset-x-auto sm:left-6 sm:bottom-6 sm:w-[450px]"
+            className="glass-strong fixed inset-x-3 bottom-20 z-50 flex h-[640px] max-h-[85vh] flex-col rounded-3xl border border-glass-border shadow-2xl backdrop-blur-2xl sm:inset-x-auto sm:left-6 sm:bottom-6 sm:w-[460px]"
           >
             {/* Header */}
             <div className="border-b border-glass-border/70 p-4">
@@ -239,14 +281,13 @@ export function GeminiAssistant() {
                   </div>
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <h3 className="text-sm font-bold">נועה ❤️ | בקרת תעודות והצלבות</h3>
+                      <h3 className="text-sm font-bold">נועה AI ❤️ | מוח לוגיסטי אוטונומי</h3>
                       <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
-                        סבן 1994
+                        SabanOS
                       </span>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      יד ימינו של ראמי ·{" "}
-                      {configured ? "Google AI Studio ישיר" : "בקרת הצלבות מקומית"}
+                      יד ימינו של ראמי · קומקס ⇄ וואטסאפ ⇄ מילון סבן
                     </p>
                   </div>
                 </div>
@@ -256,7 +297,7 @@ export function GeminiAssistant() {
                   <button
                     onClick={refreshOperationalData}
                     disabled={isRefreshing}
-                    title="רענן נתוני מערכת"
+                    title="רענן נתוני גיליון"
                     className="grid size-8 place-items-center rounded-xl text-muted-foreground transition-colors hover:bg-glass hover:text-foreground active:scale-95"
                   >
                     <RefreshCw className={cn("size-3.5", isRefreshing && "animate-spin")} />
@@ -285,21 +326,22 @@ export function GeminiAssistant() {
                 </div>
               </div>
 
-              {/* Operational Context Strip */}
+              {/* Saban Sheet Context Strip */}
               <div className="mt-3">
                 <button
                   onClick={() => setShowDataDetails(!showDataDetails)}
                   className="flex w-full items-center justify-between rounded-xl border border-glass-border/60 bg-glass/60 px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-glass hover:text-foreground"
                 >
                   <div className="flex items-center gap-2">
-                    <Database className="size-3.5 text-primary" />
+                    <TableProperties className="size-3.5 text-primary" />
                     <span>
-                      {records.length} רשומות ·{" "}
-                      {failedCount > 0 ? `${failedCount} כשלים` : "הכל מסונכרן"}
+                      {SABAN_SHEET_TAB} · {scheduleOrders.length} הזמנות בסידור
                     </span>
                   </div>
                   <div className="flex items-center gap-1.5 text-[11px]">
-                    <span>{online ? "מקוון" : "אופליין"}</span>
+                    <span className="font-medium text-foreground">
+                      חכמת: {hikmatOrdersCount} | עלי: {aliOrdersCount}
+                    </span>
                     <ChevronDown
                       className={cn(
                         "size-3 transition-transform duration-200",
@@ -320,31 +362,80 @@ export function GeminiAssistant() {
                     >
                       <div className="mt-2 grid grid-cols-4 gap-1.5 rounded-2xl border border-glass-border bg-glass/40 p-2 text-center text-[11px]">
                         <div className="rounded-xl bg-glass p-1.5">
-                          <p className="font-bold text-success tabular-nums">{syncedCount}</p>
-                          <p className="text-[10px] text-muted-foreground">מסונכרן</p>
+                          <p className="font-bold text-primary tabular-nums">
+                            {scheduleOrders.length}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">בסידור</p>
                         </div>
                         <div className="rounded-xl bg-glass p-1.5">
-                          <p className="font-bold text-warning tabular-nums">{pendingCount}</p>
-                          <p className="text-[10px] text-muted-foreground">ממתין</p>
+                          <p className="font-bold text-sky-400 tabular-nums">{hikmatOrdersCount}</p>
+                          <p className="text-[10px] text-muted-foreground">חכמת (מנוף)</p>
                         </div>
                         <div className="rounded-xl bg-glass p-1.5">
-                          <p className="font-bold text-destructive tabular-nums">{failedCount}</p>
-                          <p className="text-[10px] text-muted-foreground">כשלים</p>
+                          <p className="font-bold text-amber-400 tabular-nums">{aliOrdersCount}</p>
+                          <p className="text-[10px] text-muted-foreground">עלי (איסוזו)</p>
                         </div>
                         <div className="rounded-xl bg-glass p-1.5">
-                          <p className="font-bold text-primary tabular-nums">{queue.length}</p>
-                          <p className="text-[10px] text-muted-foreground">בתור</p>
+                          <p className="font-bold text-success tabular-nums">
+                            {deliveredOrdersCount}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground">סופקו</p>
                         </div>
                       </div>
+
+                      {/* Recent Toast Status Updates preview inside drawer */}
+                      {recentUpdates.length > 0 ? (
+                        <div className="mt-2 rounded-2xl border border-glass-border bg-glass/30 p-2.5 text-right">
+                          <div className="mb-1.5 flex items-center justify-between text-[11px] font-semibold text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Bell className="size-3 text-primary" />
+                              התראות סטטוס אחרונות (Toast שודר לראמי):
+                            </span>
+                            <span className="text-[10px] opacity-70">
+                              {recentUpdates.length} עדכונים
+                            </span>
+                          </div>
+                          <div className="max-h-28 space-y-1 overflow-y-auto pl-1 text-[11px]">
+                            {recentUpdates.slice(0, 4).map((upd, i) => (
+                              <div
+                                key={i}
+                                className="flex items-center justify-between rounded-lg bg-glass/60 px-2 py-1"
+                              >
+                                <div className="truncate">
+                                  <span className="font-bold text-foreground">
+                                    הזמנה {upd.order_id}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    {" "}
+                                    ({upd.customer_name})
+                                  </span>
+                                </div>
+                                <span
+                                  className={cn(
+                                    "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold",
+                                    upd.newStatus.includes("סופק")
+                                      ? "bg-success/20 text-success"
+                                      : upd.newStatus.includes("יצא")
+                                        ? "bg-primary/20 text-primary"
+                                        : "bg-warning/20 text-warning",
+                                  )}
+                                >
+                                  {upd.newStatus}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : null}
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
               </div>
 
-              {/* Vercel API Key Setup Hint Banner (Quiet notice when unconfigured) */}
+              {/* Status Hint Banner */}
               {!configured ? (
                 <div className="mt-2 flex items-center justify-between rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-[11px] text-warning">
-                  <span>להפעלת בינה חופשית, הגדר VITE_GEMINI_API_KEY ב-Vercel</span>
+                  <span>נועה פועלת במצב סידור מקומי מלא עם התראות Toast בזמן אמת.</span>
                   <a
                     href="https://aistudio.google.com/apikey"
                     target="_blank"
@@ -370,14 +461,15 @@ export function GeminiAssistant() {
                     </div>
                     <p className="font-bold text-foreground">שלום ראמי! נועה לשירותך ❤️</p>
                     <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                      אני כאן לעבור איתך על תעודות המשלוח, לבצע הצלבות מול ההזמנות, לבדוק פקדונות
-                      (בלה 60002 ומשטחים 60060), לאמת טכוגרף ולהפיק המלצות אישור מדויקות.
+                      מוח לוגיסטי אוטונומי דרוך: הצלבות קומקס ⇄ וואטסאפ, איתור תוספות טלפוניות,
+                      עדכון מילון משודרג, פקדונות ושיבוצי חכמת/עלי. בכל רגע תוכל לאשר בספרה{" "}
+                      <strong>1</strong>.
                     </p>
                   </div>
 
                   <div className="space-y-1.5">
                     <p className="text-xs font-medium text-muted-foreground">
-                      פעולות בקרה והצלבה מהירות:
+                      פקודות ושאלות נפוצות:
                     </p>
                     <div className="grid gap-1.5">
                       {NOA_OPERATIONAL_SUGGESTIONS.map((item) => (
@@ -407,7 +499,7 @@ export function GeminiAssistant() {
                 >
                   <div
                     className={cn(
-                      "group relative max-w-[88%] rounded-2xl p-3.5 text-xs leading-relaxed whitespace-pre-wrap md:text-sm",
+                      "group relative max-w-[90%] rounded-2xl p-3.5 text-xs leading-relaxed whitespace-pre-wrap md:text-sm",
                       turn.role === "user"
                         ? "ms-auto bg-primary text-primary-foreground shadow-sm"
                         : "border border-glass-border bg-glass/80 text-foreground backdrop-blur-md",
@@ -420,7 +512,7 @@ export function GeminiAssistant() {
                         <span className="size-1.5 animate-pulse rounded-full bg-primary" />
                         <span className="size-1.5 animate-pulse rounded-full bg-primary [animation-delay:200ms]" />
                         <span className="size-1.5 animate-pulse rounded-full bg-primary [animation-delay:400ms]" />
-                        <span className="text-xs text-muted-foreground">מעבד תובנות…</span>
+                        <span className="text-xs text-muted-foreground">מעבדת נתונים בגיליון…</span>
                       </div>
                     )}
 
@@ -453,40 +545,63 @@ export function GeminiAssistant() {
                 <button
                   onClick={() =>
                     void send(
-                      "נועה, בצעי הצלבה מלאה של תעודת המשלוח האחרונה מול ההזמנה, כולל חתימה ופקדונות.",
+                      "נועה, בצעי הצלבה תלת-כיוונית להזמנת קומקס 6215715 עבור לי-רן (מוצקין 22), בדקי תוספות טלפוניות וסלנג חדש.",
                     )
                   }
-                  className="shrink-0 rounded-full border border-glass-border bg-glass px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+                  className="shrink-0 rounded-full border border-primary/30 bg-primary/10 text-primary px-2.5 py-1 text-[11px] font-semibold transition-colors hover:bg-primary/20 active:scale-95"
                 >
-                  📄 הצלב תעודה
+                  🚨 הצלב קומקס (6215715)
+                </button>
+                <button
+                  onClick={() => void send("1")}
+                  className="shrink-0 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 px-2.5 py-1 text-[11px] font-bold transition-colors hover:bg-emerald-500/20 active:scale-95"
+                  title="אישור מהיר של ראמי בספרה 1"
+                >
+                  1️⃣ אישור ("1")
                 </button>
                 <button
                   onClick={() =>
                     void send(
-                      'בדקי תקינות פקדונות: בלה (60002 יחס 1:1 למק"טים 11501-11570) ומשטחי 60060 לפי 35-40 שקים.',
+                      "👤 יהודה כהן (לי-רן מוצקין)\n📱 0505669924\nנועה תשלחי לי מחר בבוקר 2 בלות חול ו-40 מלט למוצקין 22 ברעננה עם חכמת.",
                     )
                   }
-                  className="shrink-0 rounded-full border border-glass-border bg-glass px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+                  className="shrink-0 rounded-full border border-glass-border bg-glass px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:text-primary active:scale-95"
                 >
-                  📦 בדוק פקדונות
-                </button>
-                <button
-                  onClick={() =>
-                    void send("בדקי רציפות נסיעת נהג, שעות פעילות וזמני פריקה באתר לפי הטכוגרף.")
-                  }
-                  className="shrink-0 rounded-full border border-glass-border bg-glass px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground active:scale-95"
-                >
-                  ⏱️ טכוגרף וזמנים
+                  🔔 פנייה JONI
                 </button>
                 <button
                   onClick={() =>
                     void send(
-                      "הפיקי דוח יומי מסכם לראמי: כמה תעודות נסרקו, כמה אושרו, כמה הועברו לבדיקה וכמה נפסלו.",
+                      "נועה, מה הסידור להיום בגיליון דוח_בוקר_מבצעי? תציגי חלוקה לפי סבבים ונהגים.",
                     )
                   }
                   className="shrink-0 rounded-full border border-glass-border bg-glass px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground active:scale-95"
                 >
-                  📊 סיכום לראמי
+                  📋 מה הסידור?
+                </button>
+                <button
+                  onClick={() => void send("נועה, תעדכני שהזמנה 6215504 סופקה במלואו")}
+                  className="shrink-0 rounded-full border border-glass-border bg-emerald-500/10 text-emerald-400 border-emerald-500/30 px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-emerald-500/20 active:scale-95"
+                  title="בדיקת התראת Toast לסופק במלואו"
+                >
+                  ✅ ספק 6215504
+                </button>
+                <button
+                  onClick={() => void send("נועה, תעדכני שהזמנה 6215712 יצאה לדרך עם חכמת")}
+                  className="shrink-0 rounded-full border border-glass-border bg-primary/10 text-primary border-primary/30 px-2.5 py-1 text-[11px] font-medium transition-colors hover:bg-primary/20 active:scale-95"
+                  title="בדיקת התראת Toast ליצא לדרך"
+                >
+                  🚚 יצא לדרך 6215712
+                </button>
+                <button
+                  onClick={() =>
+                    void send(
+                      "תוסיפי לסידור של מחר סבב 1 לחכמת, הזמנה 6215715, לקוח יוסי מלכה, רחוב הזית 4 רעננה, 4 בלות חול ו-30 מלט מהחרש.",
+                    )
+                  }
+                  className="shrink-0 rounded-full border border-glass-border bg-glass px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:text-foreground active:scale-95"
+                >
+                  ➕ הוסף הזמנה
                 </button>
               </div>
 
@@ -509,7 +624,7 @@ export function GeminiAssistant() {
                       void send(input);
                     }
                   }}
-                  placeholder="הקלד מספר תעודה, שם לקוח, שאילתת פקדונות או בקש הצלבה…"
+                  placeholder="הקלד פקודה (לדוגמה: 'תעדכני שהזמנה 6215504 סופקה' או 'מה הסידור?')..."
                   className="max-h-24 min-h-[44px] flex-1 resize-none rounded-2xl border border-glass-border bg-glass px-3.5 py-2.5 text-xs outline-none focus:ring-2 focus:ring-primary/40 md:text-sm"
                 />
                 <button
@@ -530,7 +645,7 @@ export function GeminiAssistant() {
 }
 
 /**
- * Clean formatter for AI responses supporting bold, bullets and code blocks
+ * Clean formatter for AI responses supporting bold, bullets, links and code blocks
  */
 function FormattedMessage({ content }: { content: string }) {
   const lines = content.split("\n");
@@ -547,7 +662,7 @@ function FormattedMessage({ content }: { content: string }) {
           const text = line.replace(/^[•-]\s*/, "");
           return (
             <div key={idx} className="flex items-start gap-2">
-              <span className="mt-1 size-1 shrink-0 rounded-full bg-primary" />
+              <span className="mt-1.5 size-1 shrink-0 rounded-full bg-primary" />
               <span>{renderFormattedInline(text)}</span>
             </div>
           );
@@ -560,8 +675,8 @@ function FormattedMessage({ content }: { content: string }) {
 }
 
 function renderFormattedInline(text: string) {
-  // Simple markdown bold and inline code parser
-  const parts = text.split(/(\*\*.*?\*\*|`.*?`)/g);
+  // Regex to split on bold, inline code, and links: [link](url)
+  const parts = text.split(/(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g);
 
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
@@ -579,6 +694,21 @@ function renderFormattedInline(text: string) {
         >
           {part.slice(1, -1)}
         </code>
+      );
+    }
+    const linkMatch = part.match(/^\[(.*?)\]\((.*?)\)$/);
+    if (linkMatch) {
+      return (
+        <a
+          key={index}
+          href={linkMatch[2]}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1 font-semibold text-primary underline underline-offset-2 hover:opacity-80"
+        >
+          {linkMatch[1]}
+          <ExternalLink className="size-2.5" />
+        </a>
       );
     }
     return part;
