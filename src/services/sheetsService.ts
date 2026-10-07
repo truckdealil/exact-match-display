@@ -169,7 +169,7 @@ export async function fetchRecords(): Promise<SyncRecord[]> {
             const isDone = status.includes("סופק");
 
             return {
-              id: orderId,
+              id: `${orderId}-r${idx + 2}`,
               timestamp: new Date().toISOString(),
               interfaceName: "Orders",
               driveFolderReference: `Drive/Orders/Saban-2026`,

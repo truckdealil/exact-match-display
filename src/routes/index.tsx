@@ -1,28 +1,35 @@
 import { useState, useEffect } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import {
   Activity,
   Bell,
+  BookOpen,
   CheckCircle2,
   Clock,
-  Crosshair,
+  Cloud,
+  Cpu,
   FolderSync,
+  Gauge,
+  History,
   MapPin,
   MessageSquare,
   Navigation,
+  Package,
   Phone,
+  RefreshCw,
   Send,
+  ShieldAlert,
+  ShieldCheck,
   Sparkles,
   TableProperties,
+  Trash2,
   TriangleAlert,
   Truck,
   User,
-  UserCheck,
-  Cloud,
-  RefreshCw,
-  Trash2,
+  Users,
+  Volume2,
 } from "lucide-react";
 import { GlassCard, SectionTitle } from "@/components/glass-card";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -52,6 +59,8 @@ import {
   SABAN_WHATSAPP_TAB,
   type WhatsAppConversation,
 } from "@/services/whatsappService";
+import { getBrainKpis } from "@/services/noaBrainService";
+import { playMobileChime } from "@/services/audioService";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -59,15 +68,17 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "לוח בקרה | מרכז שליטה" },
+      { title: "דשבורד מחווני ידע ובקרה | נועה AI" },
       {
         name: "description",
-        content: "תצוגת בנטו חיה של סטטוס המערכת, סידור עבודה יומי וזיהוי לקוחות בוואטסאפ.",
+        content:
+          "דשבורד מחווני ידע ובקרה (Telematics KPIs), 21 כללי DNA פעילים, וסידור עבודה מבצעי של ח. סבן.",
       },
-      { property: "og:title", content: "לוח בקרה | מרכז שליטה" },
+      { property: "og:title", content: "דשבורד מחווני ידע ובקרה | נועה AI" },
       {
         property: "og:description",
-        content: "תצוגת בנטו חיה של סטטוס המערכת, סידור עבודה יומי וזיהוי לקוחות בוואטסאפ.",
+        content:
+          "דשבורד מחווני ידע ובקרה (Telematics KPIs), 21 כללי DNA פעילים, וסידור עבודה מבצעי של ח. סבן.",
       },
     ],
   }),
@@ -92,6 +103,7 @@ function Dashboard() {
   const [conversations, setConversations] = useState<WhatsAppConversation[]>([]);
   const [isSyncingSheets, setIsSyncingSheets] = useState(false);
   const [cloudStatus, setCloudStatus] = useState<string>("מתחבר לענן…");
+  const [kpis, setKpis] = useState(getBrainKpis());
 
   // Simulation state for incoming Make WhatsApp message
   const [simPhone, setSimPhone] = useState("0507654321");
@@ -113,6 +125,7 @@ function Dashboard() {
     setScheduleOrders(loadScheduleOrders());
     setRecentUpdates(loadRecentStatusUpdates());
     setConversations(loadWhatsAppConversations());
+    setKpis(getBrainKpis());
 
     // בדיקת חיבור ענן וסנכרון חי ראשוני מול הגיליון של סבן
     void checkSheetsCloudConnection().then((res) => {
@@ -149,14 +162,20 @@ function Dashboard() {
       }
     };
 
+    const handleDnaRulesUpdate = () => {
+      setKpis(getBrainKpis());
+    };
+
     window.addEventListener("saban_schedule_updated", handleScheduleUpdate);
     window.addEventListener("saban_order_status_updated", handleStatusUpdate);
     window.addEventListener("saban_whatsapp_updated", handleWhatsAppUpdate);
+    window.addEventListener("saban_dna_rules_updated", handleDnaRulesUpdate);
 
     return () => {
       window.removeEventListener("saban_schedule_updated", handleScheduleUpdate);
       window.removeEventListener("saban_order_status_updated", handleStatusUpdate);
       window.removeEventListener("saban_whatsapp_updated", handleWhatsAppUpdate);
+      window.removeEventListener("saban_dna_rules_updated", handleDnaRulesUpdate);
     };
   }, [queryClient]);
 
@@ -207,6 +226,7 @@ function Dashboard() {
     try {
       const result = await processIncomingCustomerMessage(phone, text);
       setConversations(loadWhatsAppConversations());
+      playMobileChime();
       setLastDispatchedReply({
         reply: result.reply,
         isRecognized: result.isRecognized,
@@ -224,48 +244,234 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Executive Welcome & Top Bar */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ type: "spring", stiffness: 200, damping: 24 }}
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-3"
       >
-        <p className="text-sm text-muted-foreground">שלום ראמי</p>
-        <h1 className="text-3xl font-bold tracking-tight md:text-4xl">
-          <span className="text-gradient">מרכז שליטה וסידור</span> מבצעי
-        </h1>
+        <div>
+          <p className="text-xs font-semibold text-sky-400">ח. סבן חומרי בניין (1994) בע״מ</p>
+          <h1 className="text-3xl font-extrabold tracking-tight md:text-4xl text-slate-100">
+            דשבורד מחווני ידע ובקרה <span className="text-sky-400">נועה AI</span>
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            פורטל PWA היברידי · מוח לוגיסטי SabanOS · סנכרון מערכת מאוחדת ו-Make
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              playMobileChime();
+              toast.success("צלצול מובייל נועה (587Hz ❯ 880Hz) הופעל בהצלחה");
+            }}
+            className="inline-flex items-center gap-1.5 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-3.5 py-2 text-xs font-bold text-sky-400 hover:bg-sky-500/20 active:scale-95 transition-all"
+            title="השמעת צליל התראה מובייל עצמאי"
+          >
+            <Volume2 className="size-4" />
+            <span>בדיקת צליל</span>
+          </button>
+          <Link
+            to="/data"
+            className="inline-flex items-center gap-1.5 rounded-2xl bg-sky-600 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-sky-600/30 hover:bg-sky-500 active:scale-95 transition-all"
+          >
+            <Cpu className="size-4" />
+            <span>אימון מוח DNA</span>
+          </Link>
+        </div>
       </motion.div>
 
-      {/* Top Stat Cards */}
-      <div className="grid grid-cols-2 gap-3 md:gap-4 lg:grid-cols-4">
-        <StatCard
-          icon={CheckCircle2}
-          label="מסונכרן לגיליון"
-          value={synced}
-          tone="text-success"
-          delay={0}
-        />
-        <StatCard
-          icon={Clock}
-          label="ממתין לסנכרון"
-          value={pending}
-          tone="text-warning"
-          delay={0.05}
-        />
-        <StatCard
-          icon={TriangleAlert}
-          label="כשלים"
-          value={failed}
-          tone="text-destructive"
-          delay={0.1}
-        />
-        <StatCard
-          icon={FolderSync}
-          label="הזמנות בסידור"
-          value={scheduleOrders.length}
-          tone="text-primary"
-          delay={0.15}
-        />
+      {/* Hero KPI Card: Operational Accuracy Gauge + 4 Telematics Pillars */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* Visual Percentage Gauge (94%) */}
+        <GlassCard
+          glow
+          className="p-6 flex flex-col justify-between border-sky-500/30 bg-gradient-to-br from-slate-900/90 to-slate-900/50"
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+              מדד דיוק תפעולי כולל
+            </span>
+            <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-bold text-emerald-400 border border-emerald-500/30">
+              ביצועים גבוהים
+            </span>
+          </div>
+
+          <div className="my-4 flex items-center justify-center gap-6">
+            {/* Circular Gauge */}
+            <div className="relative grid size-28 place-items-center">
+              <svg className="size-28 -rotate-90 transform" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  className="text-slate-800"
+                  fill="transparent"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="40"
+                  stroke="currentColor"
+                  strokeWidth="8"
+                  strokeDasharray={251.2}
+                  strokeDashoffset={251.2 * (1 - kpis.operationalAccuracy / 100)}
+                  strokeLinecap="round"
+                  className="text-sky-400 transition-all duration-1000 ease-out"
+                  fill="transparent"
+                />
+              </svg>
+              <div className="absolute flex flex-col items-center">
+                <span className="text-3xl font-black text-slate-100">
+                  {kpis.operationalAccuracy}%
+                </span>
+                <span className="text-[10px] font-semibold text-slate-400">דיוק מוח</span>
+              </div>
+            </div>
+
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                <ShieldCheck className="size-4" />
+                <span>הצלבת קומקס פעילה</span>
+              </div>
+              <p className="text-[11px] text-slate-300 leading-tight">
+                מוח נועה מונע טעויות חיוב, אוכף פקדונות 1:1 ומסנכרן לוחות שינוע בזמן אמת.
+              </p>
+            </div>
+          </div>
+
+          <div className="border-t border-slate-800 pt-2 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>סטטוס ענן:</span>
+            <span className="text-sky-400 font-mono font-medium">{cloudStatus}</span>
+          </div>
+        </GlassCard>
+
+        {/* 4 Live Knowledge & Telematics KPI Cards */}
+        <div className="lg:col-span-2 grid grid-cols-2 gap-3 sm:gap-4">
+          <Link to="/data" className="block group">
+            <GlassCard className="p-4 h-full border-slate-800 hover:border-sky-500/50 transition-all">
+              <div className="flex items-center justify-between">
+                <span className="grid size-10 place-items-center rounded-2xl bg-sky-500/15 text-sky-400 group-hover:scale-105 transition-transform">
+                  <Cpu className="size-5" />
+                </span>
+                <span className="text-xs font-semibold text-sky-400 group-hover:underline">
+                  פתח סטודיו ←
+                </span>
+              </div>
+              <p className="mt-3 text-2xl font-black text-slate-100">{kpis.activeDnaRules} כללים</p>
+              <p className="text-xs font-bold text-slate-300">כללי DNA פעילים</p>
+              <p className="mt-1 text-[11px] text-slate-400">
+                כולל כלל הפינג-פונג, חוקי פקדונות 1:1 והשפה הערבית
+              </p>
+            </GlassCard>
+          </Link>
+
+          <GlassCard className="p-4 h-full border-slate-800">
+            <span className="grid size-10 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-400">
+              <Users className="size-5" />
+            </span>
+            <p className="mt-3 text-2xl font-black text-slate-100">
+              {kpis.verifiedCustomers} לקוחות
+            </p>
+            <p className="text-xs font-bold text-slate-300">לקוחות מאומתים</p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              סנכרון מלא מול איתוראן ותיקי לקוחות (לי-רן, ערוגת הבשם)
+            </p>
+          </GlassCard>
+
+          <GlassCard className="p-4 h-full border-slate-800">
+            <span className="grid size-10 place-items-center rounded-2xl bg-amber-500/15 text-amber-400">
+              <BookOpen className="size-5" />
+            </span>
+            <p className="mt-3 text-2xl font-black text-slate-100">
+              {kpis.dictionaryTermsCount.toLocaleString()} מק״טים
+            </p>
+            <p className="text-xs font-bold text-slate-300">מונחים במילון לוגיסטי</p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              נרמול סלנג קומקס אוטונומי ומילון משודרג
+            </p>
+          </GlassCard>
+
+          <GlassCard className="p-4 h-full border-slate-800">
+            <span className="grid size-10 place-items-center rounded-2xl bg-purple-500/15 text-purple-400">
+              <History className="size-5" />
+            </span>
+            <p className="mt-3 text-2xl font-black text-slate-100">
+              {kpis.activeHistoryOrders} הזמנות
+            </p>
+            <p className="text-xs font-bold text-slate-300">הזמנות מתועדות בהיסטוריה</p>
+            <p className="mt-1 text-[11px] text-slate-400">
+              מסונכרן מול גיליון מאגר מידע נועה ומערכת מאוחדת
+            </p>
+          </GlassCard>
+        </div>
       </div>
+
+      {/* Fleet Telematics & Protocol Strip */}
+      <GlassCard className="p-4 border-slate-800">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
+          <div className="flex items-center gap-2">
+            <Truck className="size-4 text-sky-400" />
+            <h3 className="text-sm font-bold text-slate-100">
+              מחווני צי רכב ותקשורת שטח (Telematics Fleet)
+            </h3>
+          </div>
+          <div className="flex items-center gap-2 text-xs">
+            <span className="text-slate-400">מחסנים:</span>
+            <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-300 font-mono">
+              🏭 4 החרש 10
+            </span>
+            <span className="rounded bg-slate-800 px-2 py-0.5 text-slate-300 font-mono">
+              🏟️ 1 התלמיד 6
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 text-xs">
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-sky-400">חכמת | מרצדס מנוף</span>
+              <span className="font-mono text-[11px] text-slate-400">615-41-002</span>
+            </div>
+            <p className="text-slate-300">עומס: 18 בלות / 26 טון | יציאה: 07:00</p>
+            <p className="text-[11px] text-slate-400">מחסן 4 החרש 10 (פריקות מנוף לגובה)</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-emerald-400">עלי | איסוזו פלטה</span>
+              <span className="font-mono text-[11px] text-slate-400">651-51-701</span>
+            </div>
+            <p className="text-slate-300">חלוקה מהירה | פריקה ידנית</p>
+            <p className="text-[11px] text-slate-400">מחסן 1 התלמיד 6 (גבס, דבקים וצבעים)</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 p-3 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-amber-400">משאית רמסע מכולות</span>
+              <span className="text-[11px] text-slate-400">פסולת בניין</span>
+            </div>
+            <p className="text-slate-300">קיבולת 8 קוב תקנית</p>
+            <p className="text-[11px] text-slate-400">החלפת מכולות לפי דרישה</p>
+          </div>
+
+          <div className="rounded-xl border border-rose-500/30 bg-rose-950/20 p-3 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-rose-400 flex items-center gap-1">
+                <ShieldAlert className="size-3.5" />
+                פרוטוקול מנכ״ל
+              </span>
+              <span className="font-mono text-[11px] text-rose-300">050-5227724</span>
+            </div>
+            <p className="text-rose-200">הראל אידלסון — קו אדום עליון</p>
+            <p className="text-[11px] text-rose-400 font-semibold">Priority 1 מיידי בכל סבב</p>
+          </div>
+        </div>
+      </GlassCard>
 
       {/* Live Saban Schedule Section (דוח_בוקר_מבצעי / הזמנות) */}
       <GlassCard delay={0.2} glow className="p-5">
@@ -347,13 +553,13 @@ function Dashboard() {
               </button>
             </div>
           ) : (
-            scheduleOrders.map((order) => {
+            scheduleOrders.map((order, idx) => {
               const isDelivered = order.status.includes("סופק");
               const isEnRoute = order.status.includes("יצא לדרך");
 
               return (
                 <div
-                  key={order.order_id}
+                  key={`${order.order_id}-${order.round_time || ""}-${idx}`}
                   className="flex flex-col gap-3 rounded-2xl border border-glass-border bg-glass/60 p-4 transition-all hover:bg-glass sm:flex-row sm:items-center sm:justify-between"
                 >
                   <div className="min-w-0 flex-1 space-y-1">
@@ -712,9 +918,9 @@ function Dashboard() {
         <GlassCard delay={0.3} className="lg:col-span-2">
           <SectionTitle title="פעילות סנכרון כללית" subtitle="רשומות ומסמכים שסונכרנו ל-Sheets" />
           <div className="space-y-2">
-            {rows.slice(0, 5).map((row) => (
+            {rows.slice(0, 5).map((row, idx) => (
               <div
-                key={row.id}
+                key={`${row.id}-${idx}`}
                 className="flex items-center gap-3 rounded-2xl border border-glass-border bg-glass px-4 py-3"
               >
                 <Activity className="size-4 shrink-0 text-primary" />

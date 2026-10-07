@@ -12,6 +12,41 @@ const SEQUENCES: Record<ChimeName, number[]> = {
   soft: [523.3, 784],
 };
 
+/**
+ * מנוע צלצול מובייל עצמאי (Web Audio Chime):
+ * צליל מובייל נקי: תו ראשון (587Hz) ותו שני הרמוני (880Hz) עם דעיכה מהירה
+ */
+export function playMobileChime() {
+  if (typeof window === "undefined") return;
+  try {
+    const AudioContextCtor =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!AudioContextCtor) return;
+    const ctx = new AudioContextCtor();
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(587.33, now); // D5
+    osc.frequency.exponentialRampToValueAtTime(880.0, now + 0.12); // A5
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.3, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + 0.4);
+  } catch (e) {
+    console.warn("Audio Chime not supported:", e);
+  }
+}
+
 class AudioNotificationService {
   private ctx: AudioContext | null = null;
   private enabled = true;
@@ -23,6 +58,11 @@ class AudioNotificationService {
 
   setVolume(value: number) {
     this.volume = Math.min(1, Math.max(0, value));
+  }
+
+  playMobileChime() {
+    if (!this.enabled) return;
+    playMobileChime();
   }
 
   private context(): AudioContext | null {
