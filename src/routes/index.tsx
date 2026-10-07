@@ -63,6 +63,7 @@ import {
 } from "@/services/whatsappService";
 import { getBrainKpis } from "@/services/noaBrainService";
 import { playMobileChime } from "@/services/audioService";
+import { LogisticsAnalyticsDashboard } from "@/components/logistics-analytics-dashboard";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -474,6 +475,13 @@ function Dashboard() {
           </div>
         </div>
       </GlassCard>
+
+      {/* Visual Recharts Logistics Analytics Dashboard */}
+      <LogisticsAnalyticsDashboard
+        orders={scheduleOrders}
+        onRefresh={handleSyncFromSheets}
+        isRefreshing={isSyncingSheets}
+      />
 
       {/* Live Saban Schedule Section (דוח_בוקר_מבצעי / הזמנות) */}
       <GlassCard delay={0.2} glow className="p-5">
