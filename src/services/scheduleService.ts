@@ -265,26 +265,22 @@ export function notifyStatusChange(event: StatusNotificationEvent): void {
  * Col N (13): קיימת תעודת משלוח? (status)
  * Col P (15): טלפון נהג (driver_phone)
  */
-export function mapRawSheetRowToScheduleOrder(row: any[]): ScheduleOrder {
+export function mapRawSheetRowToScheduleOrder(row: unknown[]): ScheduleOrder {
   // Check if row is from master tab 'הזמנות' (Index 2 is numeric customer ID, length >= 10)
   const isMasterOrdersTab =
-    row.length >= 10 &&
-    !isNaN(Number(row[2])) &&
-    String(row[2]).trim().length >= 4;
+    row.length >= 10 && !isNaN(Number(row[2])) && String(row[2] ?? "").trim().length >= 4;
 
-  const orderId = String(row[1] || "").trim();
+  const orderId = String(row[1] ?? "").trim();
 
   // In 'הזמנות': Customer Name is Column D (Index 3). In 'דוח_בוקר': Column C (Index 2).
   const customerName = isMasterOrdersTab
-    ? String(row[3] || "לקוח ח. סבן").trim()
-    : String(row[2] || "לקוח ח. סבן").trim();
+    ? String(row[3] ?? "לקוח ח. סבן").trim()
+    : String(row[2] ?? "לקוח ח. סבן").trim();
 
   // Warehouse: Column E (Index 4) in 'הזמנות', Column D (Index 3) in 'דוח_בוקר'
   const rawWarehouse = isMasterOrdersTab ? String(row[4] || "") : String(row[3] || "");
   const warehouse =
-    rawWarehouse.includes("תלמיד") || rawWarehouse.includes("1")
-      ? "🏟️ 1️⃣(התלמיד)"
-      : "🏭 4️⃣(החרש)";
+    rawWarehouse.includes("תלמיד") || rawWarehouse.includes("1") ? "🏟️ 1️⃣(התלמיד)" : "🏭 4️⃣(החרש)";
 
   // Address: Column F (Index 5) in 'הזמנות', Column E (Index 4) in 'דוח_בוקר'
   const address = isMasterOrdersTab ? String(row[5] || "") : String(row[4] || "");
@@ -360,22 +356,36 @@ export function mapRawSheetRowToScheduleOrder(row: any[]): ScheduleOrder {
 /**
  * נרמול שורת הזמנה מהגיליון (תמיכה במערכים ובאובייקטים בכותרות עברית ואנגלית)
  */
-export function normalizeSheetOrder(raw: any): ScheduleOrder {
+export function normalizeSheetOrder(raw: Record<string, unknown> | unknown[]): ScheduleOrder {
   if (Array.isArray(raw)) {
     return mapRawSheetRowToScheduleOrder(raw);
   }
 
+  const rawObj = raw as Record<string, unknown>;
+
   const order_id = String(
-    raw["מספר הזמנה"] || raw.order_id || raw.OrderId || raw.id || `ORD-${Date.now()}`,
+    rawObj["מספר הזמנה"] ??
+      rawObj["order_id"] ??
+      rawObj["OrderId"] ??
+      rawObj["id"] ??
+      `ORD-${Date.now()}`,
   ).trim();
 
   const customer_id = String(
-    raw["מספר לקוח"] || raw.customer_number || raw.customer_id || raw.CustId || "",
+    rawObj["מספר לקוח"] ??
+      rawObj["customer_number"] ??
+      rawObj["customer_id"] ??
+      rawObj["CustId"] ??
+      "",
   ).trim();
 
   // Extract customer name - never fall back to "לקוח כללי", fallback to 'לקוח ח. סבן'
   let customer_name = String(
-    raw["שם לקוח"] || raw["שם לקוח / אתר"] || raw.customer_name || raw.CustName || "",
+    rawObj["שם לקוח"] ??
+      rawObj["שם לקוח / אתר"] ??
+      rawObj["customer_name"] ??
+      rawObj["CustName"] ??
+      "",
   ).trim();
 
   // If customer_name was mistakenly set to a numeric customer ID, or is empty:
@@ -385,7 +395,7 @@ export function normalizeSheetOrder(raw: any): ScheduleOrder {
 
   // Warehouse: 'מחסן' in הזמנות, 'מחסן מקור' in דוח_בוקר
   const rawWarehouse = String(
-    raw["מחסן"] || raw["מחסן מקור"] || raw.warehouse || raw.Warehouse || "",
+    rawObj["מחסן"] || rawObj["מחסן מקור"] || rawObj.warehouse || rawObj.Warehouse || "",
   ).trim();
   let warehouse = rawWarehouse || "🏭 4️⃣(החרש)";
   if (rawWarehouse.includes("תלמיד") || rawWarehouse.includes("1")) {
@@ -398,17 +408,17 @@ export function normalizeSheetOrder(raw: any): ScheduleOrder {
 
   // Address: 'כתובת אספקה' in הזמנות, 'כתובת יעד ועיר' in דוח_בוקר
   const address = String(
-    raw["כתובת אספקה"] ||
-      raw["כתובת יעד ועיר"] ||
-      raw["כתובת יעד"] ||
-      raw.address ||
-      raw.SiteAddress ||
+    rawObj["כתובת אספקה"] ||
+      rawObj["כתובת יעד ועיר"] ||
+      rawObj["כתובת יעד"] ||
+      rawObj.address ||
+      rawObj.SiteAddress ||
       "",
   ).trim();
 
   // Driver: 'נהג משוייך' in הזמנות, 'נהג משובץ' in דוח_בוקר
   const rawDriver = String(
-    raw["נהג משוייך"] || raw["נהג משובץ"] || raw.driver || raw.Driver || "",
+    rawObj["נהג משוייך"] || rawObj["נהג משובץ"] || rawObj.driver || rawObj.Driver || "",
   ).trim();
   let driver = rawDriver || "עלי (משאית איסוזו)";
   if (rawDriver.includes("חכמת") || rawDriver.includes("מנוף")) {
@@ -419,16 +429,16 @@ export function normalizeSheetOrder(raw: any): ScheduleOrder {
 
   // Items: 'פירוט מוצרים וכמויות'
   const items = String(
-    raw["פירוט מוצרים וכמויות"] ||
-      raw["פירוט פריטים וכמויות"] ||
-      raw.items ||
-      raw.ItemsSummary ||
+    rawObj["פירוט מוצרים וכמויות"] ||
+      rawObj["פירוט פריטים וכמויות"] ||
+      rawObj.items ||
+      rawObj.ItemsSummary ||
       "",
   ).trim();
 
   // Deposits: Col H ('פקדון בלות') and Col I ('פקדון משטחים') in הזמנות
-  const rawBags = String(raw["פקדון בלות"] || raw.big_bag_deposit || "").trim();
-  const rawPallets = String(raw["פקדון משטחים"] || raw.pallet_deposit || "").trim();
+  const rawBags = String(rawObj["פקדון בלות"] || rawObj.big_bag_deposit || "").trim();
+  const rawPallets = String(rawObj["פקדון משטחים"] || rawObj.pallet_deposit || "").trim();
   let deposits = "";
   if (rawBags || rawPallets) {
     const bagText =
@@ -447,9 +457,9 @@ export function normalizeSheetOrder(raw: any): ScheduleOrder {
   }
   if (!deposits) {
     deposits = String(
-      raw["פקדונות (בלות/משטחים)"] ||
-        raw["פקדונות"] ||
-        raw.deposits ||
+      rawObj["פקדונות (בלות/משטחים)"] ||
+        rawObj["פקדונות"] ||
+        rawObj.deposits ||
         calculateDeposits(items) ||
         "פטור מפקדונות",
     );
@@ -457,7 +467,7 @@ export function normalizeSheetOrder(raw: any): ScheduleOrder {
 
   // Status: 'קיימת תעודת משלוח?' in הזמנות, 'סטטוס ביצוע' in דוח_בוקר
   const rawStatus = String(
-    raw["קיימת תעודת משלוח?"] || raw["סטטוס ביצוע"] || raw.status || raw.Status || "",
+    rawObj["קיימת תעודת משלוח?"] || rawObj["סטטוס ביצוע"] || rawObj.status || rawObj.Status || "",
   );
   let status = "בסידור עבודה";
   if (rawStatus.includes("סופק") || rawStatus.includes("כן")) status = "סופק במלואו";
@@ -465,13 +475,17 @@ export function normalizeSheetOrder(raw: any): ScheduleOrder {
   else if (rawStatus.includes("העמסה") || rawStatus.includes("מוכן")) status = "מוכן להעמסה";
 
   // Waze URL: 'קישור Waze' in הזמנות, 'ניווט Waze' in דוח_בוקר
-  const rawWaze = String(raw["קישור Waze"] || raw["ניווט Waze"] || raw.waze_url || "").trim();
+  const rawWaze = String(
+    rawObj["קישור Waze"] || rawObj["ניווט Waze"] || rawObj.waze_url || "",
+  ).trim();
   const waze_url = rawWaze.startsWith("http")
     ? rawWaze
     : `https://waze.com/ul?q=${encodeURIComponent(address)}&navigate=yes`;
 
   // Round / Time: 'תאריך קליטה' in הזמנות, 'סבב ושעה' in דוח_בוקר
-  const round_time = String(raw["סבב ושעה"] || raw["תאריך קליטה"] || raw.round_time || "סבב בוקר");
+  const round_time = String(
+    rawObj["סבב ושעה"] || rawObj["תאריך קליטה"] || rawObj.round_time || "סבב בוקר",
+  );
 
   const whatsapp_action = driver.includes("חכמת") ? "שדר לחכמת" : "שדר לעלי";
 

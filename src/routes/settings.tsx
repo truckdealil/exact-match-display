@@ -249,7 +249,9 @@ function SettingsPage() {
             <div className="rounded-2xl border border-glass-border bg-glass/60 p-4 space-y-3 text-xs">
               <p className="font-bold text-foreground">הגדרות כתובת Google Apps Script ב-Vercel</p>
               <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">כתובת ה-Web App של Apps Script:</label>
+                <label className="text-[11px] text-muted-foreground">
+                  כתובת ה-Web App של Apps Script:
+                </label>
                 <input
                   type="text"
                   value={customEndpoint}
@@ -260,7 +262,9 @@ function SettingsPage() {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] text-muted-foreground">טוקן אבטחה (Secret Token):</label>
+                <label className="text-[11px] text-muted-foreground">
+                  טוקן אבטחה (Secret Token):
+                </label>
                 <input
                   type="text"
                   value={customToken}
@@ -427,4 +431,3 @@ function ConnectionRow({
     </div>
   );
 }
-
