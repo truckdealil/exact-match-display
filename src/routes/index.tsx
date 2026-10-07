@@ -10,6 +10,7 @@ import {
   Clock,
   Cloud,
   Cpu,
+  Crosshair,
   FolderSync,
   Gauge,
   History,
@@ -28,6 +29,7 @@ import {
   TriangleAlert,
   Truck,
   User,
+  UserCheck,
   Users,
   Volume2,
 } from "lucide-react";
